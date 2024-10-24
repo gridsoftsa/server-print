@@ -1,10 +1,7 @@
 <?php
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
-use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
-use Mike42\Escpos\Printer;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -19,19 +16,4 @@ use Mike42\Escpos\Printer;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::post('open-drawer', function () {
-    Log::info('openDrawer');
-    $connector = new WindowsPrintConnector('CAJA');
-
-    $printer = new Printer($connector);
-
-    try {
-        // Comando ESC/POS para abrir la caja registradora
-        $printer->pulse();
-        $printer->close();
-
-        return response()->json(['message' => 'Caja abierta'], 200);
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Error al abrir la caja', 'error' => $e->getMessage()], 500);
-    }
-});
+Route::get('open-drawer/{name}', 'Printer@openCash');
