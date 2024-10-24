@@ -21,7 +21,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 Route::post('open-drawer', function () {
     Log::info('openDrawer');
-    $connector = new WindowsPrintConnector('POS-80');
+    $connector = new WindowsPrintConnector('CAJA');
 
     $printer = new Printer($connector);
 
