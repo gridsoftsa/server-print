@@ -1,0 +1,22 @@
+version: '3.8'
+
+networks:
+  app-network:
+
+volumes:
+  app-data:
+
+services:
+  laravel-app:
+    image: gridsoftsas/laravel-print-pos:latest  # Usa la imagen descargada
+    container_name: laravel-app
+    restart: always
+    ports:
+      - "8081:80"
+    volumes:
+      - ./:/var/www
+      - .docker/php/php.ini:/usr/local/etc/php/conf.d/local.ini
+      - .docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - .docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      app-network:
