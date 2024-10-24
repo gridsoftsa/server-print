@@ -16,4 +16,4 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::get('open-drawer/{name}', 'Printer@openCash');
+Route::get('open-drawer/{name}', 'App\Http\Controllers\PrinterController@openCash');
