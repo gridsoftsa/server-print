@@ -17,3 +17,4 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 Route::get('open-drawer/{name}', 'App\Http\Controllers\PrinterController@openCash');
+Route::post('/print-order', 'App\Http\Controllers\PrinterController@printOrder');
