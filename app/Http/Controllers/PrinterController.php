@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 use Mike42\Escpos\Printer;
 use Illuminate\Support\Facades\Log;
+use Mike42\Escpos\EscposImage;
 
 class PrinterController extends Controller
 {
@@ -28,26 +29,37 @@ class PrinterController extends Controller
 
     public function printOrder(Request $request)
     {
+        ini_set('memory_limit', '256M');
+
         Log::info('printOrder');
         $printerName = $request->printerName; // Nombre de la impresora
-        $htmlContent = $request->htmlContent; // Contenido HTML a imprimir
         $openCash = $request->openCash ?? false; // Si open_cash no está presente, por defecto es false
+        $base64Image = $request->input('image'); // Captura la imagen en base64
+
+        // Decodificar el string base64 para obtener los datos binarios de la imagen
+        $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
+
+        // Guardar temporalmente la imagen decodificada
+        $tempPath = storage_path('app/public/temp_image.png');
+        file_put_contents($tempPath, $imageData);
 
         try {
             // Crear el conector e instancia de la impresora
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
-            // Convertir el HTML en texto (Opcional)
-            // Aquí puedes usar una librería para convertir el HTML en texto o formatearlo
-            // según el tipo de impresora. Como las impresoras térmicas suelen usar solo
-            // texto plano, puede que necesites extraer el texto del HTML.
+            // Cargar la imagen desde el archivo temporal
+            $img = EscposImage::load($tempPath);
 
-            // Imprimir el contenido HTML
-            $printer->text($htmlContent . "\n");
+            // Imprimir la imagen centrada
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->bitImage($img);
+            $printer->feed(2); // Añade 2 líneas en blanco al final para espacio adicional
+
+            // Corta el papel
             $printer->cut();
 
-            // Abrir la caja si el parámetro `open_cash` es true
+            // Abrir la caja si el parámetro ⁠ open_cash ⁠ es true
             if ($openCash) {
                 $printer->pulse();
             }
