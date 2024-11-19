@@ -15,20 +15,21 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['*'],
+    'paths' => ['api/*', '*'], // Aplica CORS a todas las rutas o específicas si prefieres
 
-    'allowed_origins' => ['*'],
+    'allowed_methods' => ['*'], // Permite todos los métodos HTTP (GET, POST, PUT, DELETE, etc.)
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins' => ['*'], // Permite cualquier origen
 
-    'allowed_headers' => ['*'],
+    'allowed_origins_patterns' => [], // No se requieren patrones adicionales
 
-    'exposed_headers' => [],
+    'allowed_headers' => ['*'], // Permite todos los encabezados
+
+    'exposed_headers' => [], // Puedes agregar encabezados específicos si es necesario
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true, // Habilita las cookies y autenticación si es necesario
 
 ];

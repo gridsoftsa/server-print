@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-Route::get('open-drawer/{name}', 'App\Http\Controllers\PrinterController@openCash');
-Route::post('/print-order', 'App\Http\Controllers\PrinterController@printOrder');
+Route::middleware(['cors'])->group(
+    function () {
+        Route::get('open-drawer/{name}', 'App\Http\Controllers\PrinterController@openCash');
+        Route::post('print-order', 'App\Http\Controllers\PrinterController@printOrder');
+    }
+);
