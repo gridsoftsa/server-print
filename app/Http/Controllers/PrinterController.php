@@ -63,8 +63,6 @@ class PrinterController extends Controller
             if ($openCash) {
                 $printer->pulse();
             }
-            // Beep adicional después de imprimir
-            $printer->text(chr(27) . "B" . chr(2) . chr(200)); // Beep 2 veces de 200ms
 
             // Cerrar la impresora
             $printer->close();
