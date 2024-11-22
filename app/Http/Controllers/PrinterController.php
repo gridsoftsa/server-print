@@ -64,9 +64,6 @@ class PrinterController extends Controller
                 $printer->pulse();
             }
 
-            // Beep adicional después de imprimir
-            $printer->getPrintConnector()->write(chr(27) . "B" . chr(2) . chr(200));
-
             // Cerrar la impresora
             $printer->close();
 
