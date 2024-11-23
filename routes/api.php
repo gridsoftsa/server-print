@@ -17,5 +17,6 @@ Route::middleware(['cors'])->group(
     function () {
         Route::get('open-drawer/{name}', 'App\Http\Controllers\PrinterController@openCash');
         Route::post('print-order', 'App\Http\Controllers\PrinterController@printOrder');
+        Route::post('print-sale', 'App\Http\Controllers\PrinterController@printSale');
     }
 );
