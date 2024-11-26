@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Exception;
 use Illuminate\Http\Request;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 use Mike42\Escpos\Printer;
@@ -95,7 +94,6 @@ class PrinterController extends Controller
     public function printSale(Request $request)
     {
         ini_set('memory_limit', '256M');
-        ini_set('gd.jpeg_ignore_warning', 1); // Ignora advertencias de imágenes problemáticas
 
         Log::info('printSale');
         $printerName = $request->printerName; // Nombre de la impresora
@@ -121,18 +119,6 @@ class PrinterController extends Controller
 
             // Convertir a formato PNG si es necesario
             $imageResource = imagecreatefromstring($imageContent);
-
-            // Solución para el perfil de color incorrecto
-            if (!$imageResource) {
-                throw new Exception("Error al procesar la imagen");
-            }
-
-            // Limpia perfiles ICC y reconstruye la imagen
-            ob_start();
-            imagepng($imageResource);
-            $imageDataClean = ob_get_clean();
-
-            $imageResource = imagecreatefromstring($imageDataClean);
 
             $originalWidth = imagesx($imageResource);
             $originalHeight = imagesy($imageResource);
@@ -185,10 +171,6 @@ class PrinterController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al imprimir la orden: ' . $e->getMessage());
             return response()->json(['message' => 'Error al imprimir la orden', 'error' => $e->getMessage()], 500);
-        } finally {
-            if (isset($printer)) {
-                $printer->close(); // Asegúrate de cerrar siempre la impresora
-            }
         }
 
         /**
