@@ -59,6 +59,9 @@ class PrinterController extends Controller
             // Corta el papel
             $printer->cut();
 
+            // Enviar comando para el pitido
+            $printer->textRaw("\x1B(B"); // Opción 1
+
             // Abrir la caja si el parámetro ⁠ open_cash ⁠ es true
             if ($openCash) {
                 $printer->pulse();
@@ -99,20 +102,28 @@ class PrinterController extends Controller
         $printerName = $request->printerName; // Nombre de la impresora
         $openCash = $request->openCash ?? false; // Si open_cash no está presente, por defecto es false
         $base64Image = $request->input('image'); // Captura la imagen en base64
+        $logoBase64 = $request->input('logoBase64'); // Captura el logo en base64
 
         // Decodificar el string base64 para obtener los datos binarios de la imagen
         $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
 
+        // Decodificar el string logoBase64 para obtener los datos binarios de la imagen
+        $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
+
         // Guardar temporalmente la imagen decodificada
         $tempPath = storage_path('app/public/temp_image.png');
         file_put_contents($tempPath, $imageData);
+
+        // Guardar temporalmente el logo decodificado
+        $tempPathLogo = storage_path('app/public/temp_logo.png');
+        file_put_contents($tempPathLogo, $logoData);
 
         try {
             // Crear el conector e instancia de la impresora
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
-            // imprimir logo centrado
+            /* // imprimir logo centrado
             $url = $request->url_logo;
             $tempLogoPath = storage_path('app/public/temp_logo.png'); // Ruta temporal
             $imageContent = file_get_contents($url);
@@ -146,7 +157,15 @@ class PrinterController extends Controller
 
             $img = EscposImage::load($tempLogoPath);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->bitImage($img); */
+
+            // Cargar el logo desde el archivo temporal
+            $img = EscposImage::load($tempPathLogo);
+
+            // Imprimir el logo centrado
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->bitImage($img);
+            $printer->feed(1); // Añade 2 líneas en blanco al final para espacio adicional
 
             // Cargar la imagen desde el archivo temporal
             $img = EscposImage::load($tempPath);
