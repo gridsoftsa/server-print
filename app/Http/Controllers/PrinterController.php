@@ -95,6 +95,7 @@ class PrinterController extends Controller
     public function printSale(Request $request)
     {
         ini_set('memory_limit', '256M');
+        ini_set('gd.jpeg_ignore_warning', 1); // Ignora advertencias de imágenes problemáticas
 
         Log::info('printSale');
         $printerName = $request->printerName; // Nombre de la impresora
