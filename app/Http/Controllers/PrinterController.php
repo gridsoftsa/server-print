@@ -60,7 +60,7 @@ class PrinterController extends Controller
             $printer->cut();
 
             // Enviar comando para el pitido
-            $printer->textRaw("\x1B(B"); // Opción 1
+            //$printer->textRaw("\x1B(B"); // Opción 1
 
             // Abrir la caja si el parámetro ⁠ open_cash ⁠ es true
             if ($openCash) {
@@ -75,23 +75,6 @@ class PrinterController extends Controller
             Log::error('Error al imprimir la orden: ' . $e->getMessage());
             return response()->json(['message' => 'Error al imprimir la orden', 'error' => $e->getMessage()], 500);
         }
-
-        /**
-         * Esto para revisar si lo otro no sirve
-         */
-        /* try {
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->text("Orden de venta\n");
-            $printer->text("Fecha: " . date('Y-m-d H:i:s') . "\n");
-            $printer->text("Orden: " . $order . "\n");
-            $printer->feed(2);
-            $printer->cut();
-            $printer->close();
-
-            return response()->json(['message' => 'Orden impresa'], 200);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al imprimir la orden', 'error' => $e->getMessage()], 500);
-        } */
     }
 
     public function printSale(Request $request)
@@ -186,10 +169,10 @@ class PrinterController extends Controller
             // Cerrar la impresora
             $printer->close();
 
-            return response()->json(['message' => 'Factura impresa correctamente'], 200);
+            return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
-            Log::error('Error al imprimir la Factura: ' . $e->getMessage());
-            return response()->json(['message' => 'Error al imprimir la Factura', 'error' => $e->getMessage()], 500);
+            Log::error('Error al imprimir la orden: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al imprimir la orden', 'error' => $e->getMessage()], 500);
         }
 
         /**
