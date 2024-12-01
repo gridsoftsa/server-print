@@ -56,7 +56,8 @@ class CheckDatabaseTableCommand extends Command
                     // Definir el array de datos
                     $data = [
                         'printerName' => $value['printer'],
-                        'image' => $value['image']
+                        'image' => $value['image'],
+                        'openCash' => $value['open_cash']
                     ];
 
                     // Crear un objeto Request a partir del array
@@ -73,6 +74,7 @@ class CheckDatabaseTableCommand extends Command
                         'printerName' => $value['printer'],
                         'image' => $value['image'],
                         'logoBase64' => $value['logo'],
+                        'openCash' => $value['open_cash']
                     ];
 
                     // Crear un objeto Request a partir del array
