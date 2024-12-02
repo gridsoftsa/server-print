@@ -48,7 +48,7 @@ class CheckDatabaseTableCommand extends Command
             foreach ($data_resp as $key => $value) {
                 //\Log::info($value['action']);
                 if ($value['action'] == 'openCashDrawer') {
-                    $controller->openCash('POS-80');
+                    $controller->openCash($value['printer']);
                     $response = Http::withHeaders([
                         'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
                     ])->withoutVerifying()->get($url . '/' . $value['id']);
