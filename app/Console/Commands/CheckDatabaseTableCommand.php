@@ -30,6 +30,7 @@ class CheckDatabaseTableCommand extends Command
      */
     public function handle()
     {
+        ini_set('memory_limit', '512M');
         \Log::info('Command execute succesfully');
         $api_url_pos = env('API_URL_POS');
 
