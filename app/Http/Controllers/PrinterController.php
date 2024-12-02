@@ -171,8 +171,8 @@ class PrinterController extends Controller
 
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
-            Log::error('Error al imprimir la orden: ' . $e->getMessage());
-            return response()->json(['message' => 'Error al imprimir la orden', 'error' => $e->getMessage()], 500);
+            Log::error('Error al imprimir la factura: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
         }
 
         /**
@@ -189,7 +189,7 @@ class PrinterController extends Controller
 
             return response()->json(['message' => 'Orden impresa'], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al imprimir la orden', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
         } */
     }
 }
