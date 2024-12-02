@@ -29,7 +29,7 @@ class PrinterController extends Controller
 
     public function printOrder(Request $request)
     {
-        ini_set('memory_limit', '256M');
+        ini_set('memory_limit', '512M');
 
         Log::info('printOrder');
         $printerName = $request->printerName; // Nombre de la impresora
