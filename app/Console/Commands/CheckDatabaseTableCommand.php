@@ -30,7 +30,7 @@ class CheckDatabaseTableCommand extends Command
      */
     public function handle()
     {
-        \Log::info('Command execute succesfully');
+        //\Log::info('Command execute succesfully');
         $api_url_pos = env('API_URL_POS');
 
         $controller = app(PrinterController::class);
