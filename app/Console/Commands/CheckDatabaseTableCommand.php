@@ -51,7 +51,7 @@ class CheckDatabaseTableCommand extends Command
                     $controller->openCash('POS-80');
                     $response = Http::withHeaders([
                         'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                    ])->get($url . '/' . $value['id']);
+                    ])->withoutVerifying()->get($url . '/' . $value['id']);
                 } else if ($value['action'] == 'orderPrinter') {
                     // Definir el array de datos
                     $data = [
@@ -67,7 +67,7 @@ class CheckDatabaseTableCommand extends Command
                     $controller->printOrder($request);
                     $response = Http::withHeaders([
                         'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                    ])->get($url . '/' . $value['id']);
+                    ])->withoutVerifying()->get($url . '/' . $value['id']);
                 } else if ($value['action'] == 'salePrinter') {
                     // Definir el array de datos
                     $data = [
@@ -84,7 +84,7 @@ class CheckDatabaseTableCommand extends Command
                     $controller->printSale($request);
                     $response = Http::withHeaders([
                         'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                    ])->get($url . '/' . $value['id']);
+                    ])->withoutVerifying()->get($url . '/' . $value['id']);
                 }
             }
 
