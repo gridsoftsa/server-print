@@ -39,7 +39,7 @@ class CheckDatabaseTableCommand extends Command
 
         $response = Http::withHeaders([
             'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-        ])->get($url);
+        ])->withoutVerifying()->get($url);
 
         $data_resp = $response->json();
 
@@ -85,7 +85,7 @@ class CheckDatabaseTableCommand extends Command
                     $response = Http::withHeaders([
                         'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
                     ])->get($url . '/' . $value['id']);
-                } 
+                }
             }
 
         }
