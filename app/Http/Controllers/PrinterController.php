@@ -29,7 +29,7 @@ class PrinterController extends Controller
 
     public function printOrder(Request $request)
     {
-        ini_set('memory_limit', '512M');
+        ini_set('memory_limit', '1024M');
 
         Log::info('printOrder');
         $printerName = $request->printerName; // Nombre de la impresora
@@ -79,117 +79,64 @@ class PrinterController extends Controller
 
     public function printSale(Request $request)
     {
-        ini_set('memory_limit', '512M');
+        ini_set('memory_limit', '1024M'); // Aumentar memoria a 1GB
 
         Log::info('printSale');
-        $printerName = $request->printerName; // Nombre de la impresora
-        $openCash = $request->openCash ?? false; // Si open_cash no está presente, por defecto es false
-        $base64Image = $request->input('image'); // Captura la imagen en base64
-        $logoBase64 = $request->input('logoBase64'); // Captura el logo en base64
+        $printerName = $request->printerName;
+        $openCash = $request->openCash ?? false;
+        $base64Image = $request->input('image');
+        $logoBase64 = $request->input('logoBase64');
 
-        // Decodificar el string base64 para obtener los datos binarios de la imagen
+        // Decodificar Base64 y comprimir imagen
+        function compressImage($source, $destination, $quality)
+        {
+            $image = imagecreatefromstring($source);
+            imagejpeg($image, $destination, $quality);
+            imagedestroy($image);
+        }
+
         $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
-
-        // Decodificar el string logoBase64 para obtener los datos binarios de la imagen
         $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
 
-        // Guardar temporalmente la imagen decodificada
-        $tempPath = storage_path('app/public/temp_image.png');
-        file_put_contents($tempPath, $imageData);
+        // Guardar imágenes temporales
+        $tempPath = storage_path('app/public/temp_image.jpg');
+        compressImage($imageData, $tempPath, 60);
 
-        // Guardar temporalmente el logo decodificado
-        $tempPathLogo = storage_path('app/public/temp_logo.png');
-        file_put_contents($tempPathLogo, $logoData);
+        $tempPathLogo = storage_path('app/public/temp_logo.jpg');
+        compressImage($logoData, $tempPathLogo, 60);
 
         try {
-            // Crear el conector e instancia de la impresora
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
-            /* // imprimir logo centrado
-            $url = $request->url_logo;
-            $tempLogoPath = storage_path('app/public/temp_logo.png'); // Ruta temporal
-            $imageContent = file_get_contents($url);
-
-            // Convertir a formato PNG si es necesario
-            $imageResource = imagecreatefromstring($imageContent);
-
-            $originalWidth = imagesx($imageResource);
-            $originalHeight = imagesy($imageResource);
-
-            $newWidth = 350; // Ancho fijo
-            $newHeight = ($originalHeight / $originalWidth) * $newWidth; // Alto proporcional
-
-            $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
-            imagecopyresampled(
-                $resizedImage,
-                $imageResource,
-                0,
-                0,
-                0,
-                0,
-                $newWidth,
-                $newHeight,
-                $originalWidth,
-                $originalHeight
-            );
-
-            imagepng($resizedImage, $tempLogoPath); // Guardar como PNG
-            imagedestroy($imageResource); // Liberar memoria
-            imagedestroy($resizedImage); // Liberar memoria
-
-            $img = EscposImage::load($tempLogoPath);
+            // Cargar y mostrar logo
+            $imgLogo = EscposImage::load($tempPathLogo);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImage($img); */
+            $printer->bitImage($imgLogo);
+            $printer->feed(1);
 
-            // Cargar el logo desde el archivo temporal
-            $img = EscposImage::load($tempPathLogo);
-
-            // Imprimir el logo centrado
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImage($img);
-            $printer->feed(1); // Añade 2 líneas en blanco al final para espacio adicional
-
-            // Cargar la imagen desde el archivo temporal
+            // Cargar y mostrar imagen principal
             $img = EscposImage::load($tempPath);
-
-            // Imprimir la imagen centrada
             $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->bitImage($img);
-            $printer->feed(2); // Añade 2 líneas en blanco al final para espacio adicional
+            $printer->feed(2);
 
-            // Corta el papel
             $printer->cut();
 
-            // Abrir la caja si el parámetro ⁠ open_cash ⁠ es true
             if ($openCash) {
                 $printer->pulse();
             }
 
-            // Cerrar la impresora
             $printer->close();
+
+            // Eliminar archivos temporales
+            unlink($tempPath);
+            unlink($tempPathLogo);
 
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
             Log::error('Error al imprimir la factura: ' . $e->getMessage());
             return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
         }
-
-        /**
-         * Esto para revisar si lo otro no sirve
-         */
-        /* try {
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->text("Orden de venta\n");
-            $printer->text("Fecha: " . date('Y-m-d H:i:s') . "\n");
-            $printer->text("Orden: " . $order . "\n");
-            $printer->feed(2);
-            $printer->cut();
-            $printer->close();
-
-            return response()->json(['message' => 'Orden impresa'], 200);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
-        } */
     }
 }
