@@ -96,24 +96,28 @@ class PrinterController extends Controller
         }
 
         $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
-        $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
+        $logoData = $logoBase64 ? base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64)) : null;
 
         // Guardar imágenes temporales
         $tempPath = storage_path('app/public/temp_image.jpg');
         compressImage($imageData, $tempPath, 60);
 
-        $tempPathLogo = storage_path('app/public/temp_logo.jpg');
-        compressImage($logoData, $tempPathLogo, 60);
+        if ($logoData) {
+            $tempPathLogo = storage_path('app/public/temp_logo.jpg');
+            compressImage($logoData, $tempPathLogo, 60);
+        }
 
         try {
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
-            // Cargar y mostrar logo
-            $imgLogo = EscposImage::load($tempPathLogo);
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImage($imgLogo);
-            $printer->feed(1);
+            // Cargar y mostrar logo si está presente
+            if ($logoData) {
+                $imgLogo = EscposImage::load($tempPathLogo);
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->bitImage($imgLogo);
+                $printer->feed(1);
+            }
 
             // Cargar y mostrar imagen principal
             $img = EscposImage::load($tempPath);
@@ -131,7 +135,9 @@ class PrinterController extends Controller
 
             // Eliminar archivos temporales
             unlink($tempPath);
-            unlink($tempPathLogo);
+            if ($logoData) {
+                unlink($tempPathLogo);
+            }
 
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
