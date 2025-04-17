@@ -43,6 +43,13 @@ class CheckDatabaseTableCommand extends Command
             'X-Client-Slug' => $api_url_pos,
         ])->withoutVerifying()->get($url);
 
+        Log::info('Requesting API URL: ' . $url, [
+            'headers' => [
+                'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
+                'X-Client-Slug' => $api_url_pos,
+            ]
+        ]);
+
         $data_resp = $response->json();
 
         Log::info('Response from API: ', ['response' => $data_resp]);
