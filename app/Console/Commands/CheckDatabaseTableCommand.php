@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\PrinterController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CheckDatabaseTableCommand extends Command
 {
@@ -44,8 +45,10 @@ class CheckDatabaseTableCommand extends Command
 
         $data_resp = $response->json();
 
+        Log::info('Response from API: ', ['response' => $data_resp]);
+
         if (!empty($data_resp)) {
-            //\Log::info('Imprimir o abrir caja');
+            Log::info('Imprimir o abrir caja');
             foreach ($data_resp as $key => $value) {
                 //\Log::info($value['action']);
                 if ($value['action'] == 'openCashDrawer') {
