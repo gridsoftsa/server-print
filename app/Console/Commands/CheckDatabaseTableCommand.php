@@ -35,7 +35,7 @@ class CheckDatabaseTableCommand extends Command
 
         $controller = app(PrinterController::class);
 
-        $url = "https://api.gridpos.co/api/v1/print-queue";
+        $url = "https://api.gridpos.co/print-queue";
 
         $response = Http::withHeaders([
             'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
