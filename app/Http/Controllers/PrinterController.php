@@ -60,8 +60,10 @@ class PrinterController extends Controller
 
             // Imprimir con densidad reducida para mayor velocidad
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImageColumnFormat($img, Printer::IMG_DOUBLE_WIDTH);
-            $printer->feed(2);
+            $printer->bitImage($img);
+            $printer->feed(2); // Añade 2 líneas en blanco al final para espacio adicional
+
+            // Corta el papel
             $printer->cut();
 
             if ($openCash) {
@@ -122,14 +124,14 @@ class PrinterController extends Controller
             if ($tempPathLogo) {
                 $imgLogo = EscposImage::load($tempPathLogo);
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
-                $printer->bitImageColumnFormat($imgLogo, Printer::IMG_DOUBLE_WIDTH);
+                $printer->bitImage($imgLogo);
                 $printer->feed(1);
             }
 
             // Cargar y mostrar imagen principal
             $img = EscposImage::load($tempPath);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImageColumnFormat($img, Printer::IMG_DOUBLE_WIDTH);
+            $printer->bitImage($img);
             $printer->feed(2);
             $printer->cut();
 
