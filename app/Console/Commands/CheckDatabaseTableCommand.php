@@ -54,52 +54,55 @@ class CheckDatabaseTableCommand extends Command
 
         Log::info('Response from API: ', ['response' => $data_resp]);
 
-        if (!empty($data_resp)) {
-            Log::info('Imprimir o abrir caja');
-            foreach ($data_resp as $key => $value) {
-                //\Log::info($value['action']);
-                if ($value['action'] == 'openCashDrawer') {
-                    $controller->openCash($value['printer']);
-                    $response = Http::withHeaders([
-                        'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                        'X-Client-Slug' => $api_url_pos,
-                    ])->withoutVerifying()->get($url . '/' . $value['id']);
-                } else if ($value['action'] == 'orderPrinter') {
-                    // Definir el array de datos
-                    $data = [
-                        'printerName' => $value['printer'],
-                        'image' => $value['image'],
-                        'openCash' => $value['open_cash']
-                    ];
+        // Si response es un array vacío, terminar inmediatamente
+        if (empty($data_resp)) {
+            return 0;
+        }
 
-                    // Crear un objeto Request a partir del array
-                    $request = Request::create('/', 'GET', $data);
+        Log::info('Imprimir o abrir caja');
+        foreach ($data_resp as $key => $value) {
+            //\Log::info($value['action']);
+            if ($value['action'] == 'openCashDrawer') {
+                $controller->openCash($value['printer']);
+                $response = Http::withHeaders([
+                    'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
+                    'X-Client-Slug' => $api_url_pos,
+                ])->withoutVerifying()->get($url . '/' . $value['id']);
+            } else if ($value['action'] == 'orderPrinter') {
+                // Definir el array de datos
+                $data = [
+                    'printerName' => $value['printer'],
+                    'image' => $value['image'],
+                    'openCash' => $value['open_cash']
+                ];
 
-                    // Llamar al controlador pasando el objeto Request
-                    $controller->printOrder($request);
-                    $response = Http::withHeaders([
-                        'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                        'X-Client-Slug' => $api_url_pos,
-                    ])->withoutVerifying()->get($url . '/' . $value['id']);
-                } else if ($value['action'] == 'salePrinter') {
-                    // Definir el array de datos
-                    $data = [
-                        'printerName' => $value['printer'],
-                        'image' => $value['image'],
-                        'logoBase64' => $value['logo'],
-                        'openCash' => $value['open_cash']
-                    ];
+                // Crear un objeto Request a partir del array
+                $request = Request::create('/', 'GET', $data);
 
-                    // Crear un objeto Request a partir del array
-                    $request = Request::create('/', 'GET', $data);
+                // Llamar al controlador pasando el objeto Request
+                $controller->printOrder($request);
+                $response = Http::withHeaders([
+                    'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
+                    'X-Client-Slug' => $api_url_pos,
+                ])->withoutVerifying()->get($url . '/' . $value['id']);
+            } else if ($value['action'] == 'salePrinter') {
+                // Definir el array de datos
+                $data = [
+                    'printerName' => $value['printer'],
+                    'image' => $value['image'],
+                    'logoBase64' => $value['logo'],
+                    'openCash' => $value['open_cash']
+                ];
 
-                    // Llamar al controlador pasando el objeto Request
-                    $controller->printSale($request);
-                    $response = Http::withHeaders([
-                        'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                        'X-Client-Slug' => $api_url_pos,
-                    ])->withoutVerifying()->get($url . '/' . $value['id']);
-                }
+                // Crear un objeto Request a partir del array
+                $request = Request::create('/', 'GET', $data);
+
+                // Llamar al controlador pasando el objeto Request
+                $controller->printSale($request);
+                $response = Http::withHeaders([
+                    'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
+                    'X-Client-Slug' => $api_url_pos,
+                ])->withoutVerifying()->get($url . '/' . $value['id']);
             }
         }
     }
