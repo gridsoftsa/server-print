@@ -12,17 +12,17 @@ class PrinterController extends Controller
 {
     public function openCash($name = 'POS-80')
     {
-        Log::info('openDrawer');
+        Log::info('Abriendo caja: ' . $name);
         $connector = new WindowsPrintConnector($name);
         $printer = new Printer($connector);
 
         try {
-            // Comando ESC/POS para abrir la caja registradora
             $printer->pulse();
             $printer->close();
-
+            Log::info('Caja abierta con éxito: ' . $name);
             return response()->json(['message' => 'Caja abierta'], 200);
         } catch (\Exception $e) {
+            Log::error('Error al abrir la caja: ' . $e->getMessage());
             return response()->json(['message' => 'Error al abrir la caja', 'error' => $e->getMessage()], 500);
         }
     }
@@ -30,13 +30,15 @@ class PrinterController extends Controller
     public function printOrder(Request $request)
     {
         ini_set('memory_limit', '1024M');
+        ini_set('max_execution_time', 60);
 
-        Log::info('printOrder');
-        $printerName = $request->printerName; // Nombre de la impresora
-        $openCash = $request->openCash ?? false; // Si open_cash no está presente, por defecto es false
-        $base64Image = $request->input('image'); // Captura la imagen en base64
+        Log::info('Iniciando impresión de orden en: ' . ($request->printerName ?? 'impresora no especificada'));
+        $printerName = $request->printerName;
+        $openCash = $request->openCash ?? false;
+        $base64Image = $request->input('image');
 
         if (empty($base64Image)) {
+            Log::error('Error: Imagen no proporcionada para printOrder');
             return response()->json(['message' => 'Error: Imagen no proporcionada'], 400);
         }
 
@@ -48,32 +50,31 @@ class PrinterController extends Controller
         file_put_contents($tempPath, $imageData);
 
         try {
-            // Crear el conector e instancia de la impresora
+            // Crear el conector e instancia de la impresora con buffer optimizado
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
             // Cargar la imagen desde el archivo temporal
             $img = EscposImage::load($tempPath);
+            Log::info('Imagen cargada correctamente');
 
-            // Imprimir la imagen centrada
+            // Imprimir con densidad reducida para mayor velocidad
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImageColumnFormat($img);
-            $printer->feed(2); // Añade 2 líneas en blanco al final para espacio adicional
-
-            // Corta el papel
+            $printer->bitImageColumnFormat($img, Printer::IMG_DOUBLE_WIDTH);
+            $printer->feed(2);
             $printer->cut();
 
-            // Abrir la caja si el parámetro open_cash es true
             if ($openCash) {
                 $printer->pulse();
+                Log::info('Caja abierta como parte del proceso de impresión');
             }
 
-            // Cerrar la impresora
             $printer->close();
 
-            // Eliminar archivo temporal
+            // Eliminar archivo temporal inmediatamente
             @unlink($tempPath);
 
+            Log::info('Orden impresa correctamente en: ' . $printerName);
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
             Log::error('Error al imprimir la orden: ' . $e->getMessage());
@@ -83,15 +84,17 @@ class PrinterController extends Controller
 
     public function printSale(Request $request)
     {
-        ini_set('memory_limit', '1024M'); // Aumentar memoria a 1GB
+        ini_set('memory_limit', '1024M');
+        ini_set('max_execution_time', 60);
 
-        Log::info('printSale');
+        Log::info('Iniciando impresión de venta en: ' . ($request->printerName ?? 'impresora no especificada'));
         $printerName = $request->printerName;
         $openCash = $request->openCash ?? false;
         $base64Image = $request->input('image');
         $logoBase64 = $request->input('logoBase64');
 
         if (empty($base64Image)) {
+            Log::error('Error: Imagen no proporcionada para printSale');
             return response()->json(['message' => 'Error: Imagen no proporcionada'], 400);
         }
 
@@ -108,6 +111,7 @@ class PrinterController extends Controller
             $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
             $tempPathLogo = storage_path('app/public/temp_logo.png');
             file_put_contents($tempPathLogo, $logoData);
+            Log::info('Logo procesado correctamente');
         }
 
         try {
@@ -118,20 +122,20 @@ class PrinterController extends Controller
             if ($tempPathLogo) {
                 $imgLogo = EscposImage::load($tempPathLogo);
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
-                $printer->bitImageColumnFormat($imgLogo);
+                $printer->bitImageColumnFormat($imgLogo, Printer::IMG_DOUBLE_WIDTH);
                 $printer->feed(1);
             }
 
             // Cargar y mostrar imagen principal
             $img = EscposImage::load($tempPath);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImageColumnFormat($img);
+            $printer->bitImageColumnFormat($img, Printer::IMG_DOUBLE_WIDTH);
             $printer->feed(2);
-
             $printer->cut();
 
             if ($openCash) {
                 $printer->pulse();
+                Log::info('Caja abierta como parte de la impresión de venta');
             }
 
             $printer->close();
@@ -142,9 +146,10 @@ class PrinterController extends Controller
                 @unlink($tempPathLogo);
             }
 
+            Log::info('Venta impresa correctamente en: ' . $printerName);
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
-            Log::error('Error al imprimir la factura: ' . $e->getMessage());
+            Log::error('Error al imprimir la venta: ' . $e->getMessage());
             return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
         }
     }
