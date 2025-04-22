@@ -7,14 +7,9 @@ use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 use Mike42\Escpos\Printer;
 use Illuminate\Support\Facades\Log;
 use Mike42\Escpos\EscposImage;
-use Mike42\Escpos\ImagickEscposImage;
 
 class PrinterController extends Controller
 {
-    // Ancho máximo de impresión para ajustar imágenes automáticamente (en píxeles)
-    private $maxPrintWidth = 576; // Para impresoras estándar de 80mm
-    private $compressionQuality = 35; // Calidad de compresión JPEG (más bajo = más compresión)
-
     public function openCash($name = 'POS-80')
     {
         Log::info('openDrawer');
@@ -32,55 +27,6 @@ class PrinterController extends Controller
         }
     }
 
-    /**
-     * Procesa una imagen base64 para optimizarla para impresión
-     */
-    private function processBase64Image($base64Image)
-    {
-        // Limpiar datos de cabecera
-        $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
-
-        // Crear imagen desde los datos binarios
-        $image = \imagecreatefromstring($imageData);
-
-        // Obtener dimensiones originales
-        $origWidth = \imagesx($image);
-        $origHeight = \imagesy($image);
-
-        // Si la imagen es más ancha que el máximo permitido, redimensionarla
-        if ($origWidth > $this->maxPrintWidth) {
-            $newWidth = $this->maxPrintWidth;
-            $newHeight = ($origHeight / $origWidth) * $newWidth;
-
-            $tempImage = \imagecreatetruecolor($newWidth, $newHeight);
-
-            // Convertir a escala de grises para impresoras térmicas
-            \imagefilter($image, IMG_FILTER_GRAYSCALE);
-
-            // Redimensionar con mejor calidad
-            \imagecopyresampled($tempImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
-            \imagedestroy($image);
-            $image = $tempImage;
-        }
-
-        // Optimizar contraste para impresión térmica
-        \imagefilter($image, IMG_FILTER_CONTRAST, -10);
-
-        // Convertir a memoria
-        ob_start();
-        \imagejpeg($image, null, $this->compressionQuality);
-        $imageData = ob_get_contents();
-        ob_end_clean();
-
-        \imagedestroy($image);
-
-        // Guarda temporalmente la imagen optimizada
-        $tempPath = storage_path('app/public/temp_image_opt.jpg');
-        file_put_contents($tempPath, $imageData);
-
-        return $tempPath;
-    }
-
     public function printOrder(Request $request)
     {
         ini_set('memory_limit', '1024M');
@@ -94,27 +40,30 @@ class PrinterController extends Controller
             return response()->json(['message' => 'Error: Imagen no proporcionada'], 400);
         }
 
+        // Decodificar el string base64 para obtener los datos binarios de la imagen
+        $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
+
+        // Guardar temporalmente la imagen decodificada
+        $tempPath = storage_path('app/public/temp_image.png');
+        file_put_contents($tempPath, $imageData);
+
         try {
-            // Procesar imagen para optimizarla
-            $tempImagePath = $this->processBase64Image($base64Image);
-
-            // Crear imagen temporal en memoria
-            $tempImage = EscposImage::load($tempImagePath);
-
             // Crear el conector e instancia de la impresora
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
+            // Cargar la imagen desde el archivo temporal
+            $img = EscposImage::load($tempPath);
+
             // Imprimir la imagen centrada
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImageColumnFormat($tempImage);
-            $printer->feed(2);
-            $printer->cut();
+            $printer->bitImageColumnFormat($img);
+            $printer->feed(2); // Añade 2 líneas en blanco al final para espacio adicional
 
             // Corta el papel
-            // $printer->textRaw("\x1B(B"); // Opción 1
+            $printer->cut();
 
-            // Abrir la caja si el parámetro ⁠ open_cash ⁠ es true
+            // Abrir la caja si el parámetro open_cash es true
             if ($openCash) {
                 $printer->pulse();
             }
@@ -123,7 +72,7 @@ class PrinterController extends Controller
             $printer->close();
 
             // Eliminar archivo temporal
-            @unlink($tempImagePath);
+            @unlink($tempPath);
 
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
@@ -146,28 +95,39 @@ class PrinterController extends Controller
             return response()->json(['message' => 'Error: Imagen no proporcionada'], 400);
         }
 
-        try {
-            // Procesar imágenes para optimizarlas
-            $tempImagePath = $this->processBase64Image($base64Image);
-            $tempLogoPath = $logoBase64 ? $this->processBase64Image($logoBase64) : null;
+        // Decodificar el string base64
+        $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
 
-            // Conectar e imprimir
+        // Guardar imagen temporal
+        $tempPath = storage_path('app/public/temp_image.png');
+        file_put_contents($tempPath, $imageData);
+
+        // Procesar logo si existe
+        $tempPathLogo = null;
+        if ($logoBase64) {
+            $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
+            $tempPathLogo = storage_path('app/public/temp_logo.png');
+            file_put_contents($tempPathLogo, $logoData);
+        }
+
+        try {
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
-            // Imprimir logo si existe
-            if ($tempLogoPath) {
-                $logoImage = EscposImage::load($tempLogoPath);
+            // Cargar y mostrar logo si está presente
+            if ($tempPathLogo) {
+                $imgLogo = EscposImage::load($tempPathLogo);
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
-                $printer->bitImageColumnFormat($logoImage);
+                $printer->bitImageColumnFormat($imgLogo);
                 $printer->feed(1);
             }
 
-            // Imprimir imagen principal
-            $mainImage = EscposImage::load($tempImagePath);
+            // Cargar y mostrar imagen principal
+            $img = EscposImage::load($tempPath);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImageColumnFormat($mainImage);
-            $printer->feed(1);
+            $printer->bitImageColumnFormat($img);
+            $printer->feed(2);
+
             $printer->cut();
 
             if ($openCash) {
@@ -177,9 +137,9 @@ class PrinterController extends Controller
             $printer->close();
 
             // Eliminar archivos temporales
-            @unlink($tempImagePath);
-            if ($tempLogoPath) {
-                @unlink($tempLogoPath);
+            @unlink($tempPath);
+            if ($tempPathLogo) {
+                @unlink($tempPathLogo);
             }
 
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
