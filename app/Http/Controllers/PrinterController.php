@@ -90,9 +90,9 @@ class PrinterController extends Controller
         // Decodificar Base64 y comprimir imagen
         function compressImage($source, $destination, $quality)
         {
-            $image = \imagecreatefromstring($source);
-            \imagejpeg($image, $destination, $quality);
-            \imagedestroy($image);
+            $image = imagecreatefromstring($source);
+            imagejpeg($image, $destination, $quality);
+            imagedestroy($image);
         }
 
         $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
