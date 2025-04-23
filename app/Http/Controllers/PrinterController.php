@@ -30,7 +30,6 @@ class PrinterController extends Controller
     public function printOrder(Request $request)
     {
         ini_set('memory_limit', '1024M');
-        ini_set('max_execution_time', 60);
 
         Log::info('Iniciando impresión de orden en: ' . ($request->printerName ?? 'impresora no especificada'));
         $printerName = $request->printerName;
@@ -61,7 +60,7 @@ class PrinterController extends Controller
             // Imprimir con densidad reducida para mayor velocidad
             $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->bitImage($img);
-            $printer->feed(2); // Añade 2 líneas en blanco al final para espacio adicional
+            $printer->feed(1); // Añade 2 líneas en blanco al final para espacio adicional
 
             // Corta el papel
             $printer->cut();
@@ -87,7 +86,6 @@ class PrinterController extends Controller
     public function printSale(Request $request)
     {
         ini_set('memory_limit', '1024M');
-        ini_set('max_execution_time', 60);
 
         Log::info('Iniciando impresión de venta en: ' . ($request->printerName ?? 'impresora no especificada'));
         $printerName = $request->printerName;
@@ -132,7 +130,7 @@ class PrinterController extends Controller
             $img = EscposImage::load($tempPath);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->bitImage($img);
-            $printer->feed(2);
+            $printer->feed(1);
             $printer->cut();
 
             if ($openCash) {
