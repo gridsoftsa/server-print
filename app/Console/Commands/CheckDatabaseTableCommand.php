@@ -31,11 +31,8 @@ class CheckDatabaseTableCommand extends Command
      */
     public function handle()
     {
-        //\Log::info('Command execute succesfully');
         $api_url_pos = env('API_URL_POS');
-
         $controller = app(PrinterController::class);
-
         $url = "https://api.gridpos.co/print-queue";
 
         $response = Http::withHeaders([
@@ -51,7 +48,6 @@ class CheckDatabaseTableCommand extends Command
         ]);
 
         $data_resp = $response->json();
-
         Log::info('Response from API: ', ['response' => $data_resp]);
 
         // Si response es un array vacío, terminar inmediatamente
@@ -59,51 +55,95 @@ class CheckDatabaseTableCommand extends Command
             return 0;
         }
 
-        Log::info('Imprimir o abrir caja');
+        Log::info('Procesando impresiones y apertura de caja');
         foreach ($data_resp as $key => $value) {
-            //\Log::info($value['action']);
-            if ($value['action'] == 'openCashDrawer') {
-                $controller->openCash($value['printer']);
-                $response = Http::withHeaders([
-                    'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                    'X-Client-Slug' => $api_url_pos,
-                ])->withoutVerifying()->get($url . '/' . $value['id']);
-            } else if ($value['action'] == 'orderPrinter') {
-                // Definir el array de datos
-                $data = [
-                    'printerName' => $value['printer'],
-                    'image' => $value['image'],
-                    'openCash' => $value['open_cash']
-                ];
+            try {
+                switch ($value['action']) {
+                    case 'openCashDrawer':
+                        $this->processOpenCashDrawer($controller, $value);
+                        break;
 
-                // Crear un objeto Request a partir del array
-                $request = Request::create('/', 'GET', $data);
+                    case 'orderPrinter':
+                        $this->processOrderPrint($controller, $value);
+                        break;
 
-                // Llamar al controlador pasando el objeto Request
-                $controller->printOrder($request);
-                $response = Http::withHeaders([
-                    'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                    'X-Client-Slug' => $api_url_pos,
-                ])->withoutVerifying()->get($url . '/' . $value['id']);
-            } else if ($value['action'] == 'salePrinter') {
-                // Definir el array de datos
-                $data = [
-                    'printerName' => $value['printer'],
-                    'image' => $value['image'],
-                    'logoBase64' => $value['logo'],
-                    'openCash' => $value['open_cash']
-                ];
+                    case 'salePrinter':
+                        $this->processSalePrint($controller, $value);
+                        break;
 
-                // Crear un objeto Request a partir del array
-                $request = Request::create('/', 'GET', $data);
+                    default:
+                        Log::warning('Acción no reconocida: ' . $value['action']);
+                        break;
+                }
 
-                // Llamar al controlador pasando el objeto Request
-                $controller->printSale($request);
-                $response = Http::withHeaders([
-                    'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
-                    'X-Client-Slug' => $api_url_pos,
-                ])->withoutVerifying()->get($url . '/' . $value['id']);
+                // Eliminar el registro de la cola después de procesarlo
+                $this->deletePrintQueue($url, $value['id'], $api_url_pos);
+            } catch (\Exception $e) {
+                Log::error('Error procesando impresión: ' . $e->getMessage(), [
+                    'action' => $value['action'],
+                    'printer' => $value['printer'] ?? 'N/A',
+                    'id' => $value['id'] ?? 'N/A'
+                ]);
             }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Procesar apertura de caja
+     */
+    private function processOpenCashDrawer($controller, $value)
+    {
+        Log::info('Abriendo caja en impresora: ' . $value['printer']);
+        $controller->openCash($value['printer']);
+    }
+
+    /**
+     * Procesar impresión de orden tradicional
+     */
+    private function processOrderPrint($controller, $value)
+    {
+        Log::info('Imprimiendo orden en impresora: ' . $value['printer']);
+        $data = [
+            'printerName' => $value['printer'],
+            'image' => $value['image'],
+            'openCash' => $value['open_cash']
+        ];
+        $request = Request::create('/', 'GET', $data);
+        $controller->printOrder($request);
+    }
+
+    /**
+     * Procesar impresión de venta
+     */
+    private function processSalePrint($controller, $value)
+    {
+        Log::info('Imprimiendo venta en impresora: ' . $value['printer']);
+        $data = [
+            'printerName' => $value['printer'],
+            'image' => $value['image'],
+            'logoBase64' => $value['logo'],
+            'openCash' => $value['open_cash']
+        ];
+        $request = Request::create('/', 'GET', $data);
+        $controller->printSale($request);
+    }
+
+    /**
+     * Eliminar registro de la cola de impresión
+     */
+    private function deletePrintQueue($baseUrl, $id, $apiUrlPos)
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
+                'X-Client-Slug' => $apiUrlPos,
+            ])->withoutVerifying()->get($baseUrl . '/' . $id);
+
+            Log::info('Registro eliminado de la cola: ' . $id);
+        } catch (\Exception $e) {
+            Log::error('Error eliminando registro de la cola: ' . $e->getMessage());
         }
     }
 }
