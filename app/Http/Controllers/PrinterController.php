@@ -83,35 +83,13 @@ class PrinterController extends Controller
             $printer->initialize();
             $printer->setJustification(Printer::JUSTIFY_CENTER);
 
-            // Nombre de la empresa (EXTRA GRANDE)
-            $companyName = $orderData['company_info']['name'] ?? 'RESTAURANTE';
-            $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_DOUBLE_HEIGHT | Printer::MODE_EMPHASIZED);
-            $printer->text($companyName . "\n");
-            $printer->selectPrintMode(); // Reset
-            $printer->feed(1);
-
             // Tipo de orden - MÁS GRANDE
             $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
-            $printer->text("ESCALERA ARRIBA #1\n");
-            $printer->selectPrintMode(); // Reset
-            $printer->feed(1);
-
-            // Fecha y hora más grande
-            $dateFormatted = $this->formatOrderDate($orderData['order_data']['date'] ?? date('c'));
-            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-            $printer->text($dateFormatted . "\n");
-            $printer->selectPrintMode(); // Reset
-            $printer->feed(1);
-
             // Cliente si existe
             $clientName = $orderData['order_data']['client_name'] ?? $orderData['client_info']['name'] ?? null;
-            if ($clientName && $clientName !== 'CLIENTE') {
-                $printer->setJustification(Printer::JUSTIFY_LEFT);
-                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                $printer->text(strtoupper($clientName) . "\n");
-                $printer->selectPrintMode(); // Reset
-                $printer->feed(1);
-            }
+            $printer->text($clientName . "\n");
+            $printer->selectPrintMode(); // Reset
+            $printer->feed(1);
 
             // === SEPARADOR GRUESO ===
             $printer->setJustification(Printer::JUSTIFY_LEFT);
@@ -142,7 +120,7 @@ class PrinterController extends Controller
                     $printer->text("         * " . strtoupper($notes) . "\n");
                 }
 
-                $printer->feed(1); // Más espacio entre productos
+                //$printer->feed(1); // Más espacio entre productos
             }
 
             // === SEPARADOR FINAL ===
