@@ -48,7 +48,6 @@ class CheckDatabaseTableCommand extends Command
         ]);
 
         $data_resp = $response->json();
-        Log::info('Response from API: ', ['response' => $data_resp]);
 
         // Si response es un array vacío, terminar inmediatamente
         if (empty($data_resp)) {
@@ -57,10 +56,6 @@ class CheckDatabaseTableCommand extends Command
 
         // 🔍 VALIDAR ESTRUCTURA DE DATOS
         if (!is_array($data_resp)) {
-            Log::error('Respuesta de la API no es un array válido', [
-                'type' => gettype($data_resp),
-                'value' => $data_resp
-            ]);
             return 0;
         }
 
@@ -69,28 +64,12 @@ class CheckDatabaseTableCommand extends Command
             try {
                 // 🔍 VALIDAR QUE $value SEA UN ARRAY Y TENGA LA CLAVE 'action'
                 if (!is_array($value)) {
-                    Log::warning('Elemento no es un array válido', [
-                        'key' => $key,
-                        'type' => gettype($value),
-                        'value' => $value
-                    ]);
                     continue;
                 }
 
                 if (!isset($value['action'])) {
-                    Log::warning('Elemento no tiene clave "action"', [
-                        'key' => $key,
-                        'value' => $value
-                    ]);
                     continue;
                 }
-
-                Log::info('Procesando elemento válido', [
-                    'id' => $value['id'] ?? 'N/A',
-                    'action' => $value['action'],
-                    'printer' => $value['printer'] ?? 'N/A'
-                ]);
-
                 switch ($value['action']) {
                     case 'openCashDrawer':
                         $this->processOpenCashDrawer($controller, $value);
@@ -213,10 +192,11 @@ class CheckDatabaseTableCommand extends Command
         } else {
             // 🐌 MODO TRADICIONAL: usar imagen (lento)
             Log::info('🐌 Procesando venta con imagen - Modo tradicional (lento)');
+            Log::info($value);
             $data = [
                 'printerName' => $value['printer'],
                 'image' => $value['image'],
-                'logoBase64' => $value['logo'],
+                //'logoBase64' => $value['logo'],
                 'openCash' => $value['open_cash'] ?? false,
                 'useJsonMode' => false // Mantener modo imagen tradicional
             ];
