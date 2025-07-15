@@ -367,6 +367,11 @@ class PrinterController extends Controller
         try {
             $startTime = microtime(true);
 
+            // 🧹 Limpiar caché de logos antiguos ocasionalmente
+            if (rand(1, 10) === 1) { // 10% de probabilidad
+                $this->cleanLogoCache();
+            }
+
             // Crear conexión directa con la impresora
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
@@ -380,11 +385,41 @@ class PrinterController extends Controller
             $printer->initialize();
             $printer->setJustification(Printer::JUSTIFY_CENTER);
 
+            // 🚀 PROCESAMIENTO OPTIMIZADO DE LOGO
+            $logoProcessed = false;
+
+            // Intentar procesar logo desde URL (modo optimizado)
+            if (!empty($saleData['company_info']['logo_url'])) {
+                Log::info('🚀 Procesando logo desde URL: ' . $saleData['company_info']['logo_url']);
+                $logoPath = $this->downloadLogoFromUrl($saleData['company_info']['logo_url']);
+
+                if ($logoPath && file_exists($logoPath)) {
+                    try {
+                        $imgLogo = EscposImage::load($logoPath);
+                        $printer->bitImage($imgLogo);
+                        $printer->feed(1);
+                        $logoProcessed = true;
+                        Log::info('🚀 Logo impreso desde URL correctamente');
+                    } catch (\Exception $e) {
+                        Log::warning('Error imprimiendo logo desde URL: ' . $e->getMessage());
+                    }
+                }
+            }
+
             // Logo o nombre de la empresa (grande y centrado)
             $companyName = $saleData['company_info']['name'] ?? 'EMPRESA';
-            $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_DOUBLE_HEIGHT | Printer::MODE_EMPHASIZED);
-            $printer->text($companyName . "\n");
-            $printer->selectPrintMode(); // Reset
+
+            if (!$logoProcessed) {
+                // Si no hay logo o falló, usar nombre de empresa grande
+                $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_DOUBLE_HEIGHT | Printer::MODE_EMPHASIZED);
+                $printer->text($companyName . "\n");
+                $printer->selectPrintMode(); // Reset
+            } else {
+                // Si hay logo, usar nombre más pequeño
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text($companyName . "\n");
+                $printer->selectPrintMode(); // Reset
+            }
 
             // Información de la empresa si existe
             if (!empty($saleData['company_info']['address'])) {
@@ -596,13 +631,30 @@ class PrinterController extends Controller
             $tempPath = storage_path('app/public/temp_image_' . uniqid() . '.png');
             file_put_contents($tempPath, $imageData);
 
-            // Procesar logo si existe
+            // 🚀 PROCESAMIENTO OPTIMIZADO DE LOGO para método tradicional
             $tempPathLogo = null;
+
             if ($logoBase64) {
-                $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
-                $tempPathLogo = storage_path('app/public/temp_logo_' . uniqid() . '.png');
-                file_put_contents($tempPathLogo, $logoData);
-                Log::info('Logo procesado correctamente');
+                // Verificar si es una URL o base64
+                if (filter_var($logoBase64, FILTER_VALIDATE_URL)) {
+                    // 🚀 MODO OPTIMIZADO: Es una URL, descargarla
+                    Log::info('🚀 Procesando logo tradicional desde URL: ' . $logoBase64);
+                    $tempPathLogo = $this->downloadLogoFromUrl($logoBase64);
+
+                    if (!$tempPathLogo || !file_exists($tempPathLogo)) {
+                        Log::warning('Error descargando logo desde URL para método tradicional: ' . $logoBase64);
+                        $tempPathLogo = null;
+                    } else {
+                        Log::info('🚀 Logo tradicional descargado desde URL correctamente');
+                    }
+                } else {
+                    // 🐌 MODO TRADICIONAL: Es base64, procesarlo como antes
+                    Log::info('🐌 Procesando logo tradicional desde base64');
+                    $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
+                    $tempPathLogo = storage_path('app/public/temp_logo_' . uniqid() . '.png');
+                    file_put_contents($tempPathLogo, $logoData);
+                    Log::info('Logo base64 procesado correctamente');
+                }
             }
 
             $connector = new WindowsPrintConnector($printerName);
@@ -633,7 +685,11 @@ class PrinterController extends Controller
             // Eliminar archivos temporales
             @unlink($tempPath);
             if ($tempPathLogo) {
-                @unlink($tempPathLogo);
+                // Solo eliminar si no es un archivo de caché (archivos temporales contienen 'temp_logo_')
+                if (strpos($tempPathLogo, 'temp_logo_') !== false) {
+                    @unlink($tempPathLogo); // Archivo temporal base64
+                }
+                // Los archivos de caché (logo_cache/) se mantienen para reutilización
             }
 
             $executionTime = round((microtime(true) - $startTime) * 1000, 2);
@@ -641,8 +697,103 @@ class PrinterController extends Controller
 
             return response()->json(['message' => 'Orden impresa correctamente'], 200);
         } catch (\Exception $e) {
+            // Eliminar archivos temporales en caso de error
+            @unlink($tempPath);
+            if (isset($tempPathLogo) && $tempPathLogo && strpos($tempPathLogo, 'temp_logo_') !== false) {
+                @unlink($tempPathLogo); // Solo archivos temporales base64
+            }
+
             Log::error('Error al imprimir la venta: ' . $e->getMessage());
             return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * �� MÉTODO OPTIMIZADO: Descargar y procesar logo desde URL
+     * ULTRA RÁPIDO - Descarga directa sin conversión base64
+     */
+    private function downloadLogoFromUrl($logoUrl)
+    {
+        try {
+            if (empty($logoUrl) || !filter_var($logoUrl, FILTER_VALIDATE_URL)) {
+                Log::warning('URL de logo inválida o vacía: ' . $logoUrl);
+                return null;
+            }
+
+            // Crear un hash único para cachear el logo
+            $logoHash = md5($logoUrl);
+            $cacheDir = storage_path('app/public/logo_cache');
+            $logoPath = $cacheDir . '/logo_' . $logoHash . '.png';
+
+            // Crear directorio de caché si no existe
+            if (!is_dir($cacheDir)) {
+                mkdir($cacheDir, 0755, true);
+            }
+
+            // Si el logo ya está en caché y es reciente (menos de 1 hora), usarlo
+            if (file_exists($logoPath) && (time() - filemtime($logoPath)) < 3600) {
+                Log::info('🚀 Logo encontrado en caché: ' . $logoPath);
+                return $logoPath;
+            }
+
+            // Descargar logo desde URL
+            Log::info('🚀 Descargando logo desde URL: ' . $logoUrl);
+            $startTime = microtime(true);
+
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 10, // 10 segundos timeout
+                    'user_agent' => 'GridPOS-Print-Server/1.0'
+                ]
+            ]);
+
+            $logoData = file_get_contents($logoUrl, false, $context);
+
+            if ($logoData === false) {
+                Log::error('Error descargando logo desde URL: ' . $logoUrl);
+                return null;
+            }
+
+            // Guardar en caché
+            file_put_contents($logoPath, $logoData);
+
+            $downloadTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::info("🚀 Logo descargado y cacheado en {$downloadTime}ms: " . $logoPath);
+
+            return $logoPath;
+        } catch (\Exception $e) {
+            Log::error('Error procesando logo desde URL: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 🧹 MÉTODO DE LIMPIEZA: Limpiar caché de logos antiguos
+     */
+    private function cleanLogoCache()
+    {
+        try {
+            $cacheDir = storage_path('app/public/logo_cache');
+            if (!is_dir($cacheDir)) {
+                return;
+            }
+
+            $files = glob($cacheDir . '/logo_*.png');
+            $cleanedCount = 0;
+
+            foreach ($files as $file) {
+                // Eliminar archivos más antiguos de 24 horas
+                if ((time() - filemtime($file)) > 86400) {
+                    unlink($file);
+                    $cleanedCount++;
+                }
+            }
+
+            if ($cleanedCount > 0) {
+                Log::info("🧹 Caché de logos limpiado: {$cleanedCount} archivos eliminados");
+            }
+        } catch (\Exception $e) {
+            Log::warning('Error limpiando caché de logos: ' . $e->getMessage());
         }
     }
 
