@@ -196,7 +196,7 @@ class CheckDatabaseTableCommand extends Command
             $data = [
                 'printerName' => $value['printer'],
                 'image' => $value['image'],
-                //'logoBase64' => $value['logo'],
+                'logoBase64' => $value['logo'] ?? null,
                 'openCash' => $value['open_cash'] ?? false,
                 'useJsonMode' => false // Mantener modo imagen tradicional
             ];
