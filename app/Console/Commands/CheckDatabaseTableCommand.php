@@ -105,11 +105,28 @@ class CheckDatabaseTableCommand extends Command
     private function processOrderPrint($controller, $value)
     {
         Log::info('Imprimiendo orden en impresora: ' . $value['printer']);
-        $data = [
-            'printerName' => $value['printer'],
-            'image' => $value['image'],
-            'openCash' => $value['open_cash']
-        ];
+
+        // Verificar si viene con data_json (nuevo sistema) o image (tradicional)
+        if (!empty($value['data_json'])) {
+            // 🚀 MODO ESC/POS OPTIMIZADO: usar comandos nativos
+            Log::info('🚀 Procesando orden con datos JSON - Modo ESC/POS OPTIMIZADO (ultra rápido)');
+            $data = [
+                'printerName' => $value['printer'],
+                'orderData' => $value['data_json'],
+                'openCash' => $value['open_cash'] ?? false,
+                'useJsonMode' => true // Activar modo ESC/POS optimizado
+            ];
+        } else {
+            // 🐌 MODO TRADICIONAL: usar imagen (lento)
+            Log::info('🐌 Procesando orden con imagen - Modo tradicional (lento)');
+            $data = [
+                'printerName' => $value['printer'],
+                'image' => $value['image'],
+                'openCash' => $value['open_cash'] ?? false,
+                'useJsonMode' => false // Mantener modo imagen tradicional
+            ];
+        }
+
         $request = Request::create('/', 'GET', $data);
         $controller->printOrder($request);
     }
@@ -120,12 +137,29 @@ class CheckDatabaseTableCommand extends Command
     private function processSalePrint($controller, $value)
     {
         Log::info('Imprimiendo venta en impresora: ' . $value['printer']);
-        $data = [
-            'printerName' => $value['printer'],
-            'image' => $value['image'],
-            'logoBase64' => $value['logo'],
-            'openCash' => $value['open_cash']
-        ];
+
+        // Verificar si viene con data_json (nuevo sistema ESC/POS) o image (tradicional)
+        if (!empty($value['data_json'])) {
+            // 🚀 MODO ESC/POS OPTIMIZADO: usar comandos nativos para ventas
+            Log::info('🚀 Procesando venta con datos JSON - Modo ESC/POS OPTIMIZADO (ultra rápido)');
+            $data = [
+                'printerName' => $value['printer'],
+                'saleData' => $value['data_json'], // Datos de venta estructurados
+                'openCash' => $value['open_cash'] ?? false,
+                'useJsonMode' => true // Activar modo ESC/POS optimizado
+            ];
+        } else {
+            // 🐌 MODO TRADICIONAL: usar imagen (lento)
+            Log::info('🐌 Procesando venta con imagen - Modo tradicional (lento)');
+            $data = [
+                'printerName' => $value['printer'],
+                'image' => $value['image'],
+                'logoBase64' => $value['logo'],
+                'openCash' => $value['open_cash'] ?? false,
+                'useJsonMode' => false // Mantener modo imagen tradicional
+            ];
+        }
+
         $request = Request::create('/', 'GET', $data);
         $controller->printSale($request);
     }
