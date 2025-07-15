@@ -113,14 +113,16 @@ class PrinterController extends Controller
                 $notes = $product['notes'] ?? '';
 
                 // Línea del producto con formato más grande
-                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                $qtyPadded = str_pad($qty, 3, ' ', STR_PAD_RIGHT);
-                $printer->text($qtyPadded . "      " . strtoupper($name) . "\n");
+                $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
+                $qtyPadded = str_pad($qty, 2, ' ', STR_PAD_RIGHT);
+                $printer->text($qtyPadded . "   " . strtoupper($name) . "\n");
                 $printer->selectPrintMode(); // Reset
 
                 // Notas del producto si existen (indentadas y más visibles)
                 if (!empty($notes) && $notes !== null) {
-                    $printer->text("         * " . strtoupper($notes) . "\n");
+                    $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                    $printer->text("    * " . strtoupper($notes) . "\n");
+                    $printer->selectPrintMode(); // Reset
                 }
 
                 //$printer->feed(1); // Más espacio entre productos
