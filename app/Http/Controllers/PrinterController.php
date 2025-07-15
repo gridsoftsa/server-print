@@ -89,7 +89,7 @@ class PrinterController extends Controller
             $clientName = $orderData['order_data']['client_name'] ?? $orderData['client_info']['name'] ?? null;
             $printer->text($clientName . "\n");
             $printer->selectPrintMode(); // Reset
-            $printer->feed(1);
+            //$printer->feed(1);
 
             // Fecha de la orden
             $printer->text($orderData['order_data']['date'] . "\n");
@@ -101,13 +101,17 @@ class PrinterController extends Controller
 
             // ENCABEZADOS DE COLUMNAS - MÁS GRANDES
             $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-            $printer->text("CANT    ITEM\n");
+            $printer->text("CANT     ITEM\n");
             $printer->selectPrintMode(); // Reset
             $printer->text($separator . "\n");
 
             // === PRODUCTOS - FORMATO MEJORADO ===
             $products = $orderData['products'] ?? [];
+            $productCount = count($products);
+            $currentIndex = 0;
+
             foreach ($products as $product) {
+                $currentIndex++;
                 $qty = $product['quantity'] ?? 1;
                 $name = $product['name'] ?? 'Producto';
                 $notes = $product['notes'] ?? '';
@@ -125,12 +129,15 @@ class PrinterController extends Controller
                     $printer->selectPrintMode(); // Reset
                 }
 
-                $printer->text("\n"); // Pequeño espacio entre productos
+                // Agregar espacio solo si no es el último producto
+                if ($currentIndex < $productCount) {
+                    $printer->text("\n"); // Pequeño espacio entre productos
+                }
             }
 
             // === SEPARADOR FINAL ===
-            $printer->text($separator . "\n");
-            $printer->feed(1);
+            //$printer->text($separator . "\n");
+            //$printer->feed(1);
 
             // NOTA GENERAL si existe
             $generalNote = $orderData['order_data']['note'] ?? $orderData['general_note'] ?? null;
@@ -155,7 +162,7 @@ class PrinterController extends Controller
             $printer->text("ORDEN: " . $orderIdDisplay . "\n");
             $printer->selectPrintMode(); // Reset
 
-            $printer->feed(3);
+            $printer->feed(1);
             $printer->cut();
 
             // Abrir caja si se requiere
