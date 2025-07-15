@@ -85,11 +85,27 @@ class PrinterController extends Controller
             $printer->initialize();
             $printer->setJustification(Printer::JUSTIFY_CENTER);
 
-            // Tipo de orden - MÁS GRANDE
-            $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
-            // Cliente si existe
+            // Cliente si existe - Ajustado por tamaño de papel
             $clientName = $orderData['order_data']['client_name'] ?? $orderData['client_info']['name'] ?? null;
-            $printer->text($clientName . "\n");
+
+            if ($isSmallPaper) {
+                // 📱 Para papel 58mm: usar solo EMPHASIZED (texto moderado)
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+
+                // Limitar nombre del cliente a 32 caracteres para 58mm
+                if ($clientName && strlen($clientName) > 32) {
+                    $clientNameFormatted = substr($clientName, 0, 32);
+                } else {
+                    $clientNameFormatted = $clientName;
+                }
+
+                $printer->text($clientNameFormatted . "\n");
+            } else {
+                // 🖨️ Para papel 80mm: texto grande normal
+                $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
+                $printer->text($clientName . "\n");
+            }
+
             $printer->selectPrintMode(); // Reset
             //$printer->feed(1);
 
@@ -101,13 +117,17 @@ class PrinterController extends Controller
             $separator = $isSmallPaper ? str_repeat('-', 32) : str_repeat('-', 48);
             $printer->text($separator . "\n");
 
-            // ENCABEZADOS DE COLUMNAS - MÁS GRANDES
+            // ENCABEZADOS DE COLUMNAS - Ajustado para tamaño de papel
             $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-            $printer->text("CANT     ITEM\n");
+            if ($isSmallPaper) {
+                $printer->text("CANT  ITEM\n"); // Más compacto para 58mm
+            } else {
+                $printer->text("CANT     ITEM\n"); // Formato normal para 80mm
+            }
             $printer->selectPrintMode(); // Reset
             $printer->text($separator . "\n");
 
-            // === PRODUCTOS - FORMATO MEJORADO ===
+            // === PRODUCTOS - FORMATO OPTIMIZADO PARA TAMAÑO DE PAPEL ===
             $products = $orderData['products'] ?? [];
             $productCount = count($products);
             $currentIndex = 0;
@@ -118,16 +138,51 @@ class PrinterController extends Controller
                 $name = $product['name'] ?? 'Producto';
                 $notes = $product['notes'] ?? '';
 
-                // Línea del producto con formato más grande
-                $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
-                $qtyPadded = str_pad($qty, 2, ' ', STR_PAD_RIGHT);
-                $printer->text($qtyPadded . "  " . strtoupper($name) . "\n");
-                $printer->selectPrintMode(); // Reset
+                if ($isSmallPaper) {
+                    // 📱 FORMATO PARA PAPEL 58MM - Texto moderado sin cortes
+                    $qtyPadded = str_pad($qty, 2, ' ', STR_PAD_RIGHT);
 
-                // Notas del producto si existen (indentadas y más visibles)
+                    // Usar solo EMPHASIZED para 58mm (sin DOUBLE_WIDTH que corta el texto)
+                    $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+
+                    // Calcular espacio disponible: 32 chars - 2 qty - 2 espacios = 28 chars para nombre
+                    $maxNameChars = 28;
+                    $nameFormatted = strlen($name) > $maxNameChars ? substr($name, 0, $maxNameChars) : $name;
+
+                    $printer->text($qtyPadded . "  " . strtoupper($nameFormatted) . "\n");
+                    $printer->selectPrintMode(); // Reset
+
+                    // Si el nombre fue cortado, imprimir el resto en la siguiente línea
+                    if (strlen($name) > $maxNameChars) {
+                        $remainingName = substr($name, $maxNameChars);
+                        $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                        $printer->text("    " . strtoupper($remainingName) . "\n");
+                        $printer->selectPrintMode(); // Reset
+                    }
+                } else {
+                    // 🖨️ FORMATO PARA PAPEL 80MM - Texto grande normal
+                    $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
+                    $qtyPadded = str_pad($qty, 2, ' ', STR_PAD_RIGHT);
+                    $printer->text($qtyPadded . "  " . strtoupper($name) . "\n");
+                    $printer->selectPrintMode(); // Reset
+                }
+
+                // Notas del producto si existen (ajustadas por tamaño de papel)
                 if (!empty($notes) && $notes !== null) {
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                    $printer->text("    * " . strtoupper($notes) . "\n");
+
+                    if ($isSmallPaper) {
+                        // Para 58mm: limitar notas a 28 caracteres por línea
+                        $maxNoteChars = 28;
+                        $noteLines = $this->wordWrapEscPos($notes, $maxNoteChars);
+                        foreach ($noteLines as $noteLine) {
+                            $printer->text("  * " . strtoupper($noteLine) . "\n");
+                        }
+                    } else {
+                        // Para 80mm: formato normal
+                        $printer->text("    * " . strtoupper($notes) . "\n");
+                    }
+
                     $printer->selectPrintMode(); // Reset
                 }
 
@@ -397,25 +452,53 @@ class PrinterController extends Controller
                 $total = $qty * $price;
                 $subtotal += $total;
 
-                // Línea del producto
+                // Línea del producto - Optimizada para cada tamaño de papel
                 $qtyStr = str_pad($qty, 3, ' ', STR_PAD_LEFT);
                 $priceStr = str_pad('$' . number_format($total, 0), 8, ' ', STR_PAD_LEFT);
 
                 if ($isSmallPaper) {
-                    // Para 58mm: formato compacto
-                    $maxNameChars = 18;
-                    $nameStr = strlen($name) > $maxNameChars ? substr($name, 0, $maxNameChars) : str_pad($name, $maxNameChars);
-                    $printer->text($qtyStr . " " . $nameStr . " " . $priceStr . "\n");
+                    // 📱 Para 58mm: formato ultra compacto sin cortes
+                    // Espacio disponible: 32 chars - 3 qty - 1 space - 8 price - 1 space = 19 chars para nombre
+                    $maxNameChars = 19;
+
+                    if (strlen($name) > $maxNameChars) {
+                        // Si el nombre es muy largo, imprimir en múltiples líneas
+                        $nameLines = $this->wordWrapEscPos($name, $maxNameChars);
+
+                        // Primera línea con cantidad y precio
+                        $firstLine = array_shift($nameLines);
+                        $nameStr = str_pad($firstLine, $maxNameChars);
+                        $printer->text($qtyStr . " " . $nameStr . " " . $priceStr . "\n");
+
+                        // Líneas adicionales solo con el nombre (sin cantidad ni precio)
+                        foreach ($nameLines as $nameLine) {
+                            $printer->text("    " . $nameLine . "\n");
+                        }
+                    } else {
+                        // Nombre corto, formato normal
+                        $nameStr = str_pad($name, $maxNameChars);
+                        $printer->text($qtyStr . " " . $nameStr . " " . $priceStr . "\n");
+                    }
                 } else {
-                    // Para 80mm: formato extendido
+                    // 🖨️ Para 80mm: formato extendido normal
                     $maxNameChars = 28;
                     $nameStr = strlen($name) > $maxNameChars ? substr($name, 0, $maxNameChars) : str_pad($name, $maxNameChars);
                     $printer->text($qtyStr . " " . $nameStr . " " . $priceStr . "\n");
                 }
 
-                // Notas del producto si existen
+                // Notas del producto si existen (ajustadas por tamaño)
                 if (!empty($product['notes'])) {
-                    $printer->text("    * " . $product['notes'] . "\n");
+                    if ($isSmallPaper) {
+                        // Para 58mm: ajustar notas a ancho disponible
+                        $maxNoteChars = 28; // 32 - 4 espacios de indentación
+                        $noteLines = $this->wordWrapEscPos($product['notes'], $maxNoteChars);
+                        foreach ($noteLines as $noteLine) {
+                            $printer->text("  * " . $noteLine . "\n");
+                        }
+                    } else {
+                        // Para 80mm: formato normal
+                        $printer->text("    * " . $product['notes'] . "\n");
+                    }
                 }
             }
 
@@ -564,27 +647,52 @@ class PrinterController extends Controller
     }
 
     /**
-     * Word wrap para ESC/POS
+     * Word wrap mejorado para ESC/POS - Optimizado para papel 58mm
      */
     private function wordWrapEscPos($text, $maxChars)
     {
+        if (strlen($text) <= $maxChars) {
+            return [$text]; // Si el texto ya cabe, devolver como está
+        }
+
         $words = explode(' ', $text);
         $lines = [];
         $currentLine = '';
 
         foreach ($words as $word) {
-            if (strlen($currentLine . ' ' . $word) <= $maxChars) {
-                $currentLine .= ($currentLine ? ' ' : '') . $word;
-            } else {
+            // Si la palabra sola es más larga que el ancho máximo, dividirla
+            if (strlen($word) > $maxChars) {
+                // Finalizar línea actual si tiene contenido
                 if ($currentLine) {
-                    $lines[] = $currentLine;
+                    $lines[] = trim($currentLine);
+                    $currentLine = '';
+                }
+
+                // Dividir palabra larga en chunks
+                $wordChunks = str_split($word, $maxChars);
+                foreach ($wordChunks as $chunk) {
+                    $lines[] = $chunk;
+                }
+                continue;
+            }
+
+            // Verificar si la palabra cabe en la línea actual
+            $testLine = $currentLine ? $currentLine . ' ' . $word : $word;
+
+            if (strlen($testLine) <= $maxChars) {
+                $currentLine = $testLine;
+            } else {
+                // No cabe, finalizar línea actual y empezar nueva
+                if ($currentLine) {
+                    $lines[] = trim($currentLine);
                 }
                 $currentLine = $word;
             }
         }
 
+        // Agregar última línea si tiene contenido
         if ($currentLine) {
-            $lines[] = $currentLine;
+            $lines[] = trim($currentLine);
         }
 
         return $lines;
