@@ -136,7 +136,7 @@ class PrinterController extends Controller
             }
 
             // === SEPARADOR FINAL ===
-            //$printer->text($separator . "\n");
+            $printer->text($separator . "\n");
             //$printer->feed(1);
 
             // NOTA GENERAL si existe
