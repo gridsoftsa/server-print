@@ -161,7 +161,17 @@ class CheckDatabaseTableCommand extends Command
         if (!empty($value['data_json'])) {
             // 🚀 MODO ESC/POS OPTIMIZADO: usar comandos nativos
             Log::info('🚀 Procesando orden con datos JSON - Modo ESC/POS OPTIMIZADO (ultra rápido)');
-            Log::info('🚀 Ancho de papel: ' . $value['data_json']['print_settings']['paper_width']);
+
+            // 🔍 DEBUG: Log completo de los datos de impresión
+            Log::info('🔍 DEBUG datos completos de print_settings', [
+                'printer' => $value['printer'],
+                'complete_data_json' => $value['data_json'],
+                'print_settings' => $value['data_json']['print_settings'] ?? 'NO_PRINT_SETTINGS',
+                'paper_width_raw' => $value['data_json']['print_settings']['paper_width'] ?? 'NO_PAPER_WIDTH',
+                'paper_width_type' => gettype($value['data_json']['print_settings']['paper_width'] ?? null)
+            ]);
+
+            Log::info('🚀 Ancho de papel: ' . ($value['data_json']['print_settings']['paper_width'] ?? 'NO_SET'));
             $data = [
                 'printerName' => $value['printer'],
                 'orderData' => $value['data_json'],

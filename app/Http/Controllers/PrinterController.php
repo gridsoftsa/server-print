@@ -76,7 +76,8 @@ class PrinterController extends Controller
             $printer = new Printer($connector);
 
             // Configurar papel según ancho
-            $paperWidth = $orderData['print_settings']['paper_width'] ?? 80;
+            $paperWidth = isset($orderData['print_settings']['paper_width']) ?
+                (int)$orderData['print_settings']['paper_width'] : 80; // 🚀 FIX: Proper paper_width handling
             Log::info('🚀 Ancho de papel: ' . $paperWidth);
             $isSmallPaper = $paperWidth == 58;
 
@@ -316,7 +317,8 @@ class PrinterController extends Controller
             $printer = new Printer($connector);
 
             // Configurar papel según ancho
-            $paperWidth = $saleData['print_settings']['paper_width'] ?? 80;
+            $paperWidth = isset($saleData['print_settings']['paper_width']) ?
+                (int)$saleData['print_settings']['paper_width'] : 80; // 🚀 FIX: Proper paper_width handling for sales
             $isSmallPaper = $paperWidth == 58;
 
             // === ENCABEZADO ===
