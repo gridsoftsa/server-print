@@ -101,7 +101,7 @@ class PrinterController extends Controller
 
             // ENCABEZADOS DE COLUMNAS - MÁS GRANDES
             $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-            $printer->text("CANT         ITEM\n");
+            $printer->text("CANT    ITEM\n");
             $printer->selectPrintMode(); // Reset
             $printer->text($separator . "\n");
 
@@ -125,7 +125,7 @@ class PrinterController extends Controller
                     $printer->selectPrintMode(); // Reset
                 }
 
-                //$printer->feed(1); // Más espacio entre productos
+                $printer->text("\n"); // Pequeño espacio entre productos
             }
 
             // === SEPARADOR FINAL ===
