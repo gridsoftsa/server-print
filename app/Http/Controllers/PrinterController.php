@@ -83,85 +83,96 @@ class PrinterController extends Controller
             $printer->initialize();
             $printer->setJustification(Printer::JUSTIFY_CENTER);
 
-            // Nombre de la empresa (grande y centrado)
+            // Nombre de la empresa (EXTRA GRANDE)
             $companyName = $orderData['company_info']['name'] ?? 'RESTAURANTE';
             $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_DOUBLE_HEIGHT | Printer::MODE_EMPHASIZED);
             $printer->text($companyName . "\n");
             $printer->selectPrintMode(); // Reset
-
             $printer->feed(1);
 
-            // Número de orden
-            $orderNumber = $orderData['order_data']['order_number'] ?? 'ORDEN #1';
-            $orderIdDisplay = $orderData['order_data']['id'] ?? '1';
-            $orderType = strpos($orderNumber, '#') !== false ? $orderNumber : $orderNumber . ' #' . $orderIdDisplay;
-
-            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-            $printer->text($orderType . "\n");
+            // Tipo de orden - MÁS GRANDE
+            $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
+            $printer->text("ESCALERA ARRIBA #1\n");
             $printer->selectPrintMode(); // Reset
+            $printer->feed(1);
 
-            // Fecha y hora
+            // Fecha y hora más grande
             $dateFormatted = $this->formatOrderDate($orderData['order_data']['date'] ?? date('c'));
+            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
             $printer->text($dateFormatted . "\n");
-
+            $printer->selectPrintMode(); // Reset
             $printer->feed(1);
 
             // Cliente si existe
             $clientName = $orderData['order_data']['client_name'] ?? $orderData['client_info']['name'] ?? null;
             if ($clientName && $clientName !== 'CLIENTE') {
                 $printer->setJustification(Printer::JUSTIFY_LEFT);
-                $printer->text("Cliente: " . $clientName . "\n");
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text(strtoupper($clientName) . "\n");
+                $printer->selectPrintMode(); // Reset
                 $printer->feed(1);
             }
 
-            // === SEPARADOR ===
+            // === SEPARADOR GRUESO ===
             $printer->setJustification(Printer::JUSTIFY_LEFT);
             $separator = $isSmallPaper ? str_repeat('-', 32) : str_repeat('-', 48);
             $printer->text($separator . "\n");
 
-            // === PRODUCTOS ===
+            // ENCABEZADOS DE COLUMNAS - MÁS GRANDES
+            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+            $printer->text("CANT         ITEM\n");
+            $printer->selectPrintMode(); // Reset
+            $printer->text($separator . "\n");
+
+            // === PRODUCTOS - FORMATO MEJORADO ===
             $products = $orderData['products'] ?? [];
             foreach ($products as $product) {
                 $qty = $product['quantity'] ?? 1;
                 $name = $product['name'] ?? 'Producto';
                 $notes = $product['notes'] ?? '';
 
-                // Línea del producto con cantidad
-                $productLine = sprintf("%dx %s", $qty, $name);
+                // Línea del producto con formato más grande
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $qtyPadded = str_pad($qty, 3, ' ', STR_PAD_RIGHT);
+                $printer->text($qtyPadded . "      " . strtoupper($name) . "\n");
+                $printer->selectPrintMode(); // Reset
 
-                // Word wrap para nombres largos
-                $maxChars = $isSmallPaper ? 30 : 45;
-                if (strlen($productLine) > $maxChars) {
-                    $wrapped = $this->wordWrapEscPos($productLine, $maxChars);
-                    foreach ($wrapped as $line) {
-                        $printer->text($line . "\n");
-                    }
-                } else {
-                    $printer->text($productLine . "\n");
+                // Notas del producto si existen (indentadas y más visibles)
+                if (!empty($notes) && $notes !== null) {
+                    $printer->text("         * " . strtoupper($notes) . "\n");
                 }
 
-                // Notas del producto (indentadas)
-                if (!empty($notes)) {
-                    $printer->text("  * " . $notes . "\n");
-                }
+                $printer->feed(1); // Más espacio entre productos
+            }
 
+            // === SEPARADOR FINAL ===
+            $printer->text($separator . "\n");
+            $printer->feed(1);
+
+            // NOTA GENERAL si existe
+            $generalNote = $orderData['order_data']['note'] ?? $orderData['general_note'] ?? null;
+            if (!empty($generalNote) && $generalNote !== null) {
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text("NOTA: " . strtoupper($generalNote) . "\n");
+                $printer->selectPrintMode(); // Reset
                 $printer->feed(1);
             }
 
             // === PIE DE PÁGINA ===
-            $printer->text($separator . "\n");
-            $printer->feed(1);
-
             // Usuario que atiende
-            $userName = $orderData['user']['name'] ?? 'Sistema';
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $userName = $orderData['user']['name'] ?? $orderData['user']['nickname'] ?? 'Sistema';
             $printer->text("Atendido por: " . $userName . "\n");
 
             // Timestamp de impresión
-            $printer->text("Impreso: " . date('Y-m-d H:i:s') . "\n");
-            $printer->text("ID: " . $orderIdDisplay . "\n");
+            $printer->text("Impresión: " . date('d/m/Y H:i:s') . "\n");
 
-            $printer->feed(2);
+            // ID de orden más visible
+            $orderIdDisplay = $orderData['order_data']['id'] ?? '1';
+            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+            $printer->text("ORDEN: " . $orderIdDisplay . "\n");
+            $printer->selectPrintMode(); // Reset
+
+            $printer->feed(3);
             $printer->cut();
 
             // Abrir caja si se requiere
@@ -214,6 +225,51 @@ class PrinterController extends Controller
             Log::error('Error al imprimir con imagen: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al imprimir la orden con imagen',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * 🖼️ MÉTODO PARA IMPRIMIR IMAGEN EN DISPOSITIVO
+     * Método que faltaba para el modo tradicional de imagen
+     */
+    private function printImageToDevice($printerName, $imagePath, $openCash = false)
+    {
+        try {
+            // Crear conexión con la impresora
+            $connector = new WindowsPrintConnector($printerName);
+            $printer = new Printer($connector);
+
+            // Cargar la imagen
+            $img = EscposImage::load($imagePath);
+
+            // Configurar centrado y imprimir imagen
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->bitImage($img);
+            $printer->feed(2);
+            $printer->cut();
+
+            // Abrir caja si se requiere
+            if ($openCash) {
+                $printer->pulse();
+                Log::info('Caja abierta como parte de la impresión de imagen');
+            }
+
+            $printer->close();
+
+            // Eliminar archivo temporal
+            @unlink($imagePath);
+
+            Log::info('Imagen impresa correctamente en: ' . $printerName);
+            return response()->json(['message' => 'Orden impresa correctamente'], 200);
+        } catch (\Exception $e) {
+            // Eliminar archivo temporal en caso de error
+            @unlink($imagePath);
+
+            Log::error('Error al imprimir imagen: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al imprimir la imagen',
                 'error' => $e->getMessage()
             ], 500);
         }
