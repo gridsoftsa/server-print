@@ -55,9 +55,42 @@ class CheckDatabaseTableCommand extends Command
             return 0;
         }
 
+        // 🔍 VALIDAR ESTRUCTURA DE DATOS
+        if (!is_array($data_resp)) {
+            Log::error('Respuesta de la API no es un array válido', [
+                'type' => gettype($data_resp),
+                'value' => $data_resp
+            ]);
+            return 0;
+        }
+
         Log::info('Procesando impresiones y apertura de caja');
         foreach ($data_resp as $key => $value) {
             try {
+                // 🔍 VALIDAR QUE $value SEA UN ARRAY Y TENGA LA CLAVE 'action'
+                if (!is_array($value)) {
+                    Log::warning('Elemento no es un array válido', [
+                        'key' => $key,
+                        'type' => gettype($value),
+                        'value' => $value
+                    ]);
+                    continue;
+                }
+
+                if (!isset($value['action'])) {
+                    Log::warning('Elemento no tiene clave "action"', [
+                        'key' => $key,
+                        'value' => $value
+                    ]);
+                    continue;
+                }
+
+                Log::info('Procesando elemento válido', [
+                    'id' => $value['id'] ?? 'N/A',
+                    'action' => $value['action'],
+                    'printer' => $value['printer'] ?? 'N/A'
+                ]);
+
                 switch ($value['action']) {
                     case 'openCashDrawer':
                         $this->processOpenCashDrawer($controller, $value);
@@ -76,14 +109,32 @@ class CheckDatabaseTableCommand extends Command
                         break;
                 }
 
-                // Eliminar el registro de la cola después de procesarlo
+                // Después de procesar exitosamente, eliminar el registro
                 $this->deletePrintQueue($url, $value['id'], $api_url_pos);
             } catch (\Exception $e) {
-                Log::error('Error procesando impresión: ' . $e->getMessage(), [
-                    'action' => $value['action'],
-                    'printer' => $value['printer'] ?? 'N/A',
-                    'id' => $value['id'] ?? 'N/A'
+                Log::error('Error procesando elemento de la cola', [
+                    'element_id' => $value['id'] ?? 'N/A',
+                    'element_action' => $value['action'] ?? 'N/A',
+                    'error_message' => $e->getMessage(),
+                    'error_trace' => $e->getTraceAsString(),
+                    'element_data' => $value
                 ]);
+
+                // 🔧 INTENTAR RECUPERACIÓN: Si el error es por estructura de datos
+                if (strpos($e->getMessage(), 'Cannot access offset') !== false) {
+                    Log::warning('Elemento con estructura incorrecta detectado, saltando...', [
+                        'element_key' => $key,
+                        'element_type' => gettype($value),
+                        'element_value' => $value
+                    ]);
+                    continue;
+                }
+
+                // Si hay ID válido, intentar eliminar el registro problemático
+                if (isset($value['id']) && is_numeric($value['id'])) {
+                    Log::info('Eliminando registro problemático de la cola', ['id' => $value['id']]);
+                    $this->deletePrintQueue($url, $value['id'], $api_url_pos);
+                }
             }
         }
 
