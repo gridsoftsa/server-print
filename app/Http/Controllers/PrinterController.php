@@ -91,6 +91,9 @@ class PrinterController extends Controller
             $printer->selectPrintMode(); // Reset
             $printer->feed(1);
 
+            // Fecha de la orden
+            $printer->text($orderData['order_data']['date'] . "\n");
+
             // === SEPARADOR GRUESO ===
             $printer->setJustification(Printer::JUSTIFY_LEFT);
             $separator = $isSmallPaper ? str_repeat('-', 32) : str_repeat('-', 48);
@@ -142,7 +145,7 @@ class PrinterController extends Controller
             $printer->text("Atendido por: " . $userName . "\n");
 
             // Timestamp de impresión
-            $printer->text("Impresión: " . date('d/m/Y H:i:s') . "\n");
+            $printer->text("Impresión: " . $orderData['order_data']['date_print'] . "\n");
 
             // ID de orden más visible
             $orderIdDisplay = $orderData['order_data']['id'] ?? '1';
