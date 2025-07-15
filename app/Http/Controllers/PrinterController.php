@@ -77,6 +77,7 @@ class PrinterController extends Controller
 
             // Configurar papel según ancho
             $paperWidth = $orderData['print_settings']['paper_width'] ?? 80;
+            Log::info('🚀 Ancho de papel: ' . $paperWidth);
             $isSmallPaper = $paperWidth == 58;
 
             // === ENCABEZADO ===
@@ -119,7 +120,7 @@ class PrinterController extends Controller
                 // Línea del producto con formato más grande
                 $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
                 $qtyPadded = str_pad($qty, 2, ' ', STR_PAD_RIGHT);
-                $printer->text($qtyPadded . "   " . strtoupper($name) . "\n");
+                $printer->text($qtyPadded . "  " . strtoupper($name) . "\n");
                 $printer->selectPrintMode(); // Reset
 
                 // Notas del producto si existen (indentadas y más visibles)
