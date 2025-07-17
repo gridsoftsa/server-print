@@ -112,6 +112,11 @@ class PrinterController extends Controller
             // Fecha de la orden
             $printer->text($orderData['order_data']['date'] . "\n");
 
+            //Si existe el phone de la empresa, imprimirlo
+            if (!empty($orderData['order_data']['phone'])) {
+                $printer->text("Cel: " . $orderData['order_data']['phone'] . "\n");
+            }
+
             //Agregar la direccion de shipping_address si existe
             if (!empty($orderData['order_data']['shipping_address'])) {
                 $printer->text("DIRECCION: " . $orderData['order_data']['shipping_address'] . "\n");
@@ -219,7 +224,8 @@ class PrinterController extends Controller
             $printer->text("Impresión: " . $orderData['order_data']['date_print'] . "\n");
 
             // ID de orden más visible
-            $orderIdDisplay = $orderData['order_data']['id'] ?? '1';
+            $orderIdDisplay = !empty($orderData['order_data']['shipping_address']) ?
+                $orderData['order_data']['order_number'] : ($orderData['order_data']['id'] ?? '1');
             $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
             $printer->text("ORDEN: " . $orderIdDisplay . "\n");
             $printer->selectPrintMode(); // Reset
