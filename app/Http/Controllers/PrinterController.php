@@ -112,6 +112,11 @@ class PrinterController extends Controller
             // Fecha de la orden
             $printer->text($orderData['order_data']['date'] . "\n");
 
+            //Agregar la direccion de shipping_address si existe
+            if (!empty($orderData['order_data']['shipping_address'])) {
+                $printer->text("DIRECCION: " . $orderData['order_data']['shipping_address'] . "\n");
+            }
+
             // === SEPARADOR GRUESO ===
             $printer->setJustification(Printer::JUSTIFY_LEFT);
             $separator = $isSmallPaper ? str_repeat('-', 32) : str_repeat('-', 48);
