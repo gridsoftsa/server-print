@@ -33,7 +33,7 @@ class CheckDatabaseTableCommand extends Command
     {
         $api_url_pos = env('API_URL_POS');
         $controller = app(PrinterController::class);
-        $url = "https://api-demo.gridpos.co/print-queue";
+        $url = "https://api.gridpos.co/print-queue";
 
         $response = Http::withHeaders([
             'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
