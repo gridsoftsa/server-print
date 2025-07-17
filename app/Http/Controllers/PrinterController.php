@@ -114,7 +114,7 @@ class PrinterController extends Controller
 
             //Si existe el phone de la empresa, imprimirlo
             if (!empty($orderData['order_data']['phone'])) {
-                $printer->text("Cel: " . $orderData['order_data']['phone'] . "\n");
+                $printer->text("CEL: " . $orderData['order_data']['phone'] . "\n");
             }
 
             //Agregar la direccion de shipping_address si existe
