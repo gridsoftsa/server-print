@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\PrinterController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Mike42\Escpos\EscposImage;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 use Mike42\Escpos\Printer;
 
@@ -82,7 +83,7 @@ class CheckDatabaseTableCommand extends Command
                         break;
 
                     case 'salePrinter':
-                        $this->processSalePrint($controller, $value);
+                        $this->processSalePrint($value);
                         break;
 
                     default:
@@ -182,35 +183,9 @@ class CheckDatabaseTableCommand extends Command
     /**
      * Procesar impresión de venta
      */
-    private function processSalePrint($controller, $value)
+    private function processSalePrint($value)
     {
         Log::info('Imprimiendo venta en impresora: ' . $value['printer']);
-
-        /* // Verificar si viene con data_json (nuevo sistema ESC/POS) o image (tradicional)
-        if (!empty($value['data_json'])) {
-            // 🚀 MODO ESC/POS OPTIMIZADO: usar comandos nativos para ventas
-            Log::info('🚀 Procesando venta con datos JSON - Modo ESC/POS OPTIMIZADO (ultra rápido)');
-            $data = [
-                'printerName' => $value['printer'],
-                'saleData' => $value['data_json'], // Datos de venta estructurados
-                'openCash' => $value['open_cash'] ?? false,
-                'useJsonMode' => true // Activar modo ESC/POS optimizado
-            ];
-        } else {
-            // 🐌 MODO TRADICIONAL: usar imagen (lento)
-            Log::info('🐌 Procesando venta con imagen - Modo tradicional (lento)');
-            Log::info($value);
-            $data = [
-                'printerName' => $value['printer'],
-                'image' => $value['image'],
-                'logoBase64' => $value['logo'] ?? null,
-                'openCash' => $value['open_cash'] ?? false,
-                'useJsonMode' => false // Mantener modo imagen tradicional
-            ];
-        } */
-
-        Log::info('🐌 Procesando venta con imagen - Modo tradicional (lento)');
-        Log::info($value);
         $data = [
             'printerName' => $value['printer'],
             'image' => $value['image'],
@@ -219,8 +194,116 @@ class CheckDatabaseTableCommand extends Command
             'useJsonMode' => false // Mantener modo imagen tradicional
         ];
 
-        $request = Request::create('/', 'GET', $data);
-        $controller->printSale($request);
+        $this->printSale($data);
+    }
+
+    public function printSale($data)
+    {
+        ini_set('memory_limit', '1024M');
+
+        $printerName = $data['printerName'];
+        $openCash = $data['openCash'] ?? false;
+        $base64Image = $data['image'];
+        $logoBase64 = $data['logoBase64'];
+
+        if (empty($base64Image)) {
+            Log::error('Error: Imagen no proporcionada para printSale');
+            return response()->json(['message' => 'Error: Imagen no proporcionada'], 400);
+        }
+
+        return $this->printSaleWithImage($printerName, $base64Image, $logoBase64, $openCash);
+    }
+
+    /**
+     * 🐌 MÉTODO TRADICIONAL: Imprimir venta usando imagen (lento - solo compatibilidad)
+     */
+    private function printSaleWithImage($printerName, $base64Image, $logoBase64, $openCash = false)
+    {
+        try {
+            $startTime = microtime(true);
+
+            // Decodificar el string base64
+            $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
+
+            // Guardar imagen temporal
+            $tempPath = storage_path('app/public/temp_image_' . uniqid() . '.png');
+            file_put_contents($tempPath, $imageData);
+
+            // 🚀 PROCESAMIENTO OPTIMIZADO DE LOGO para método tradicional
+            $tempPathLogo = null;
+
+            if ($logoBase64) {
+                // Verificar si es una URL o base64
+                if (filter_var($logoBase64, FILTER_VALIDATE_URL)) {
+                    // 🚀 MODO OPTIMIZADO: Es una URL, descargarla
+                    Log::info('🚀 Procesando logo tradicional desde URL: ' . $logoBase64);
+                    $tempPathLogo = $this->downloadLogoFromUrl($logoBase64);
+
+                    if (!$tempPathLogo || !file_exists($tempPathLogo)) {
+                        Log::warning('Error descargando logo desde URL para método tradicional: ' . $logoBase64);
+                        $tempPathLogo = null;
+                    } else {
+                        Log::info('🚀 Logo tradicional descargado desde URL correctamente');
+                    }
+                } else {
+                    // 🐌 MODO TRADICIONAL: Es base64, procesarlo como antes
+                    Log::info('🐌 Procesando logo tradicional desde base64');
+                    $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
+                    $tempPathLogo = storage_path('app/public/temp_logo_' . uniqid() . '.png');
+                    file_put_contents($tempPathLogo, $logoData);
+                    Log::info('Logo base64 procesado correctamente');
+                }
+            }
+
+            $connector = new WindowsPrintConnector($printerName);
+            $printer = new Printer($connector);
+
+            // Cargar y mostrar logo si está presente
+            if ($tempPathLogo) {
+                $imgLogo = EscposImage::load($tempPathLogo);
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->bitImage($imgLogo);
+                $printer->feed(1);
+            }
+
+            // Cargar y mostrar imagen principal
+            $img = EscposImage::load($tempPath);
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->bitImage($img);
+            $printer->feed(1);
+            $printer->cut();
+
+            if ($openCash) {
+                $printer->pulse();
+                Log::info('Caja abierta como parte de la impresión de venta');
+            }
+
+            $printer->close();
+
+            // Eliminar archivos temporales
+            @unlink($tempPath);
+            if ($tempPathLogo) {
+                // Solo eliminar si no es un archivo de caché (archivos temporales contienen 'temp_logo_')
+                if (strpos($tempPathLogo, 'temp_logo_') !== false) {
+                    @unlink($tempPathLogo); // Archivo temporal base64
+                }
+                // Los archivos de caché (logo_cache/) se mantienen para reutilización
+            }
+
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::info("🐌 Venta impresa con imagen en {$executionTime}ms (LENTO) en: " . $printerName);
+
+            return response()->json(['message' => 'Orden impresa correctamente'], 200);
+        } catch (\Exception $e) {
+            // Eliminar archivos temporales en caso de error
+            @unlink($tempPath);
+            if (isset($tempPathLogo) && $tempPathLogo && strpos($tempPathLogo, 'temp_logo_') !== false) {
+                @unlink($tempPathLogo); // Solo archivos temporales base64
+            }
+
+            Log::error('Error al imprimir la venta: ' . $e->getMessage());
+            return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
