@@ -342,7 +342,7 @@ class PrinterController extends Controller
         $openCash = $request->openCash ?? false;
         $useJsonMode = $request->useJsonMode ?? false;
 
-        // Verificar el modo de impresión
+        /* // Verificar el modo de impresión
         if ($useJsonMode) {
             // 🚀 MODO OPTIMIZADO: Usar comandos ESC/POS directos para venta
             Log::info('🚀 Modo ESC/POS OPTIMIZADO activado para venta - Enviando comandos nativos');
@@ -366,7 +366,18 @@ class PrinterController extends Controller
             }
 
             return $this->printSaleWithImage($printerName, $base64Image, $logoBase64, $openCash);
+        } */
+
+        Log::info('🐌 Modo tradicional activado para venta - Usando imagen base64 (lento)');
+        $base64Image = $request->input('image');
+        $logoBase64 = $request->input('logoBase64');
+
+        if (empty($base64Image)) {
+            Log::error('Error: Imagen no proporcionada para printSale');
+            return response()->json(['message' => 'Error: Imagen no proporcionada'], 400);
         }
+
+        return $this->printSaleWithImage($printerName, $base64Image, $logoBase64, $openCash);
     }
 
     /**

@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\PrinterController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
+use Mike42\Escpos\Printer;
 
 class CheckDatabaseTableCommand extends Command
 {
@@ -72,7 +74,7 @@ class CheckDatabaseTableCommand extends Command
                 }
                 switch ($value['action']) {
                     case 'openCashDrawer':
-                        $this->processOpenCashDrawer($controller, $value);
+                        $this->processOpenCashDrawer($value['printer']);
                         break;
 
                     case 'orderPrinter':
@@ -123,10 +125,15 @@ class CheckDatabaseTableCommand extends Command
     /**
      * Procesar apertura de caja
      */
-    private function processOpenCashDrawer($controller, $value)
+    private function processOpenCashDrawer($name)
     {
-        Log::info('Abriendo caja en impresora: ' . $value['printer']);
-        $controller->openCash($value['printer']);
+        $connector = new WindowsPrintConnector($name);
+        $printer = new Printer($connector);
+
+        $printer->pulse();
+        $printer->close();
+        Log::info('Caja abierta con éxito: ' . $name);
+        return response()->json(['message' => 'Caja abierta'], 200);
     }
 
     /**
@@ -179,7 +186,7 @@ class CheckDatabaseTableCommand extends Command
     {
         Log::info('Imprimiendo venta en impresora: ' . $value['printer']);
 
-        // Verificar si viene con data_json (nuevo sistema ESC/POS) o image (tradicional)
+        /* // Verificar si viene con data_json (nuevo sistema ESC/POS) o image (tradicional)
         if (!empty($value['data_json'])) {
             // 🚀 MODO ESC/POS OPTIMIZADO: usar comandos nativos para ventas
             Log::info('🚀 Procesando venta con datos JSON - Modo ESC/POS OPTIMIZADO (ultra rápido)');
@@ -200,7 +207,17 @@ class CheckDatabaseTableCommand extends Command
                 'openCash' => $value['open_cash'] ?? false,
                 'useJsonMode' => false // Mantener modo imagen tradicional
             ];
-        }
+        } */
+
+        Log::info('🐌 Procesando venta con imagen - Modo tradicional (lento)');
+        Log::info($value);
+        $data = [
+            'printerName' => $value['printer'],
+            'image' => $value['image'],
+            'logoBase64' => $value['logo'] ?? null,
+            'openCash' => $value['open_cash'] ?? false,
+            'useJsonMode' => false // Mantener modo imagen tradicional
+        ];
 
         $request = Request::create('/', 'GET', $data);
         $controller->printSale($request);
