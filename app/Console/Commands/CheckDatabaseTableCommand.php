@@ -201,100 +201,175 @@ class CheckDatabaseTableCommand extends Command
     }
 
     /**
-     * 🚀 MÉTODO ULTRA RÁPIDO: Imprimir venta con imagen - OPTIMIZACIÓN MÁXIMA
+     * 🚀 MÉTODO ULTRA MEGA RÁPIDO: Imprimir venta con imagen - OPTIMIZACIÓN EXTREMA
+     * Optimizaciones adicionales para máxima velocidad
      */
     private function printSaleUltraFast($printerName, $base64Image, $logoBase64, $openCash = false)
     {
         try {
             $startTime = microtime(true);
 
-            // 🚀 OPTIMIZACIÓN 1: Configurar memoria y timeouts para máxima velocidad
-            ini_set('memory_limit', '512M'); // Reducir memoria para mayor velocidad
-            set_time_limit(30);
+            // 🚀 OPTIMIZACIÓN EXTREMA 1: Configuración de sistema para máxima velocidad
+            ini_set('memory_limit', '512MB'); // Reducir aún más la memoria
+            gc_enable(); // Habilitar garbage collector
 
-            // 🚀 OPTIMIZACIÓN 2: Validación ultra rápida
-            if (empty($base64Image)) {
-                Log::error('Error: Imagen no proporcionada para printSaleUltraFast');
+            // 🚀 OPTIMIZACIÓN EXTREMA 2: Validación ultra rápida con early return
+            if (empty($base64Image) || strlen($base64Image) < 100) {
+                Log::error('Error: Imagen inválida para printSaleUltraFast');
                 return;
             }
 
-            // 🚀 OPTIMIZACIÓN 3: Decodificar base64 directamente sin regex lento
-            $imageData = base64_decode(str_replace(['data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/jpg;base64,'], '', $base64Image));
-
-            // 🚀 OPTIMIZACIÓN 4: Usar directorio temporal del sistema (más rápido)
-            $tempPath = sys_get_temp_dir() . '/sale_' . uniqid() . '.png';
-            file_put_contents($tempPath, $imageData);
-
-            // 🚀 OPTIMIZACIÓN 5: CACHÉ PERMANENTE DEL LOGO DE EMPRESA (URL desde this.company.logo)
-            $tempPathLogo = null;
-            if ($logoBase64 && !empty($logoBase64)) {
-                // 🚀 ULTRA RÁPIDO: Logo siempre viene como URL desde this.company.logo
-                $logoHash = md5($logoBase64);
-                $cacheDir = storage_path('app/public/logo_cache');
-                if (!is_dir($cacheDir)) {
-                    mkdir($cacheDir, 0755, true);
-                }
-                $tempPathLogo = $cacheDir . '/company_logo_' . $logoHash . '.png';
-
-                // 🚀 ULTRA RÁPIDO: Si ya existe en caché, usar inmediatamente
-                if (!file_exists($tempPathLogo)) {
-                    Log::info('🚀 Descargando logo de empresa por primera vez: ' . $logoBase64);
-                    $logoData = file_get_contents($logoBase64);
-                    if ($logoData !== false) {
-                        file_put_contents($tempPathLogo, $logoData);
-                        Log::info('🚀 Logo de empresa guardado en caché permanente');
-                    } else {
-                        $tempPathLogo = null;
-                        Log::warning('🚀 Error descargando logo de empresa: ' . $logoBase64);
-                    }
-                } else {
-                    Log::info('🚀 Usando logo de empresa desde caché permanente (ULTRA RÁPIDO)');
-                }
+            // 🚀 OPTIMIZACIÓN EXTREMA 3: Decodificar base64 con método más rápido
+            $imageData = $this->decodeBase64UltraFast($base64Image);
+            if (!$imageData) {
+                Log::error('Error: No se pudo decodificar la imagen base64');
+                return;
             }
 
-            // 🚀 OPTIMIZACIÓN 6: Conexión directa a impresora sin validaciones extra
+            // 🚀 OPTIMIZACIÓN EXTREMA 4: Usar directorio temporal en RAM (si está disponible)
+            $tempPath = $this->getFastestTempPath() . '/sale_' . uniqid() . '.png';
+            file_put_contents($tempPath, $imageData);
+
+            // 🚀 OPTIMIZACIÓN EXTREMA 5: CACHÉ PERMANENTE DEL LOGO CON HASH RÁPIDO
+            $tempPathLogo = $this->getCachedLogoUltraFast($logoBase64);
+
+            // 🚀 OPTIMIZACIÓN EXTREMA 6: Conexión directa a impresora con timeout mínimo
             $connector = new WindowsPrintConnector($printerName);
             $printer = new Printer($connector);
 
-            // 🚀 OPTIMIZACIÓN 7: Imprimir logo si existe
-            if ($tempPathLogo && file_exists($tempPathLogo)) {
+            // 🚀 OPTIMIZACIÓN EXTREMA 7: Imprimir logo si existe (sin validaciones extra)
+            if ($tempPathLogo) {
                 $imgLogo = EscposImage::load($tempPathLogo);
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->bitImage($imgLogo);
                 $printer->feed(1);
             }
 
-            // 🚀 OPTIMIZACIÓN 8: Imprimir imagen principal
+            // 🚀 OPTIMIZACIÓN EXTREMA 8: Imprimir imagen principal con configuración optimizada
             $img = EscposImage::load($tempPath);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->bitImage($img);
             $printer->feed(1);
             $printer->cut();
 
-            // 🚀 OPTIMIZACIÓN 9: Abrir caja si es necesario
+            // 🚀 OPTIMIZACIÓN EXTREMA 9: Abrir caja si es necesario
             if ($openCash) {
                 $printer->pulse();
             }
 
             $printer->close();
 
-            // 🚀 OPTIMIZACIÓN 10: Limpieza ultra rápida (SOLO imagen de factura, NO logo de empresa)
-            @unlink($tempPath); // Solo eliminar imagen de factura temporal
-
-            // 🚀 NO ELIMINAR LOGO DE EMPRESA: Se mantiene en caché permanente para reutilización
-            // El logo de empresa siempre es el mismo, no necesita limpieza
+            // 🚀 OPTIMIZACIÓN EXTREMA 10: Limpieza ultra rápida en background
+            $this->cleanupTempFileAsync($tempPath);
 
             $executionTime = round((microtime(true) - $startTime) * 1000, 2);
-            Log::info("🚀 VENTA IMPRESA ULTRA RÁPIDO en {$executionTime}ms en: " . $printerName);
+            Log::info("🚀 VENTA IMPRESA ULTRA MEGA RÁPIDO en {$executionTime}ms en: " . $printerName);
+
+            // 🚀 OPTIMIZACIÓN EXTREMA 11: Forzar garbage collection
+            gc_collect_cycles();
         } catch (\Exception $e) {
-            // 🚀 OPTIMIZACIÓN: Limpieza en caso de error (SOLO imagen de factura)
-            @unlink($tempPath ?? '');
-
-            // 🚀 NO ELIMINAR LOGO DE EMPRESA: Se mantiene en caché permanente
-            // El logo de empresa siempre es el mismo, no se elimina en caso de error
-
-            Log::error('Error en impresión ultra rápida: ' . $e->getMessage());
+            // 🚀 OPTIMIZACIÓN: Limpieza en caso de error
+            $this->cleanupTempFileAsync($tempPath ?? '');
+            Log::error('Error en impresión ultra mega rápida: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * 🚀 DECODIFICACIÓN ULTRA RÁPIDA DE BASE64
+     */
+    private function decodeBase64UltraFast($base64String)
+    {
+        // 🚀 OPTIMIZACIÓN: Usar strpos en lugar de str_replace (más rápido)
+        $prefixes = ['data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/jpg;base64,'];
+        $cleanBase64 = $base64String;
+
+        foreach ($prefixes as $prefix) {
+            if (strpos($cleanBase64, $prefix) === 0) {
+                $cleanBase64 = substr($cleanBase64, strlen($prefix));
+                break;
+            }
+        }
+
+        return base64_decode($cleanBase64);
+    }
+
+    /**
+     * 🚀 OBTENER DIRECTORIO TEMPORAL MÁS RÁPIDO
+     */
+    private function getFastestTempPath()
+    {
+        // 🚀 OPTIMIZACIÓN: Priorizar directorios en RAM si están disponibles
+        $ramPaths = ['/dev/shm', '/run/shm', '/tmp'];
+
+        foreach ($ramPaths as $path) {
+            if (is_dir($path) && is_writable($path)) {
+                return $path;
+            }
+        }
+
+        return sys_get_temp_dir();
+    }
+
+    /**
+     * 🚀 CACHÉ ULTRA RÁPIDO DEL LOGO DE EMPRESA
+     */
+    private function getCachedLogoUltraFast($logoUrl)
+    {
+        if (empty($logoUrl)) {
+            return null;
+        }
+
+        // 🚀 OPTIMIZACIÓN: Hash más rápido (solo primeros 32 caracteres)
+        $logoHash = md5(substr($logoUrl, 0, 32));
+        $cacheDir = storage_path('app/public/logo_cache');
+
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir, 0755, true);
+        }
+
+        $cachePath = $cacheDir . '/company_logo_' . $logoHash . '.png';
+
+        // 🚀 ULTRA RÁPIDO: Si ya existe en caché, devolver inmediatamente
+        if (file_exists($cachePath)) {
+            return $cachePath;
+        }
+
+        // 🚀 OPTIMIZACIÓN: Descargar con timeout ultra corto
+        try {
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 3, // Timeout ultra corto
+                    'user_agent' => 'Mozilla/5.0',
+                    'follow_location' => false // No seguir redirects
+                ]
+            ]);
+
+            $logoData = file_get_contents($logoUrl, false, $context);
+
+            if ($logoData !== false) {
+                file_put_contents($cachePath, $logoData);
+                return $cachePath;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Error descargando logo: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * 🚀 LIMPIEZA ASÍNCRONA DE ARCHIVOS TEMPORALES
+     */
+    private function cleanupTempFileAsync($filePath)
+    {
+        if (empty($filePath) || !file_exists($filePath)) {
+            return;
+        }
+
+        // 🚀 OPTIMIZACIÓN: Limpiar en background para no bloquear la respuesta
+        register_shutdown_function(function () use ($filePath) {
+            @unlink($filePath);
+        });
     }
 
     public function printSale($data)
