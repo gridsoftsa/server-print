@@ -762,10 +762,16 @@ class PrinterController extends Controller
             Log::info('🚀 Descargando logo desde URL: ' . $logoUrl);
             $startTime = microtime(true);
 
+            // Configurar contexto con manejo SSL mejorado
             $context = stream_context_create([
                 'http' => [
                     'timeout' => 10, // 10 segundos timeout
                     'user_agent' => 'GridPOS-Print-Server/1.0'
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
                 ]
             ]);
 
