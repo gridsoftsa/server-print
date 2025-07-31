@@ -758,24 +758,11 @@ class PrinterController extends Controller
                 return $logoPath;
             }
 
-            // Descargar logo desde URL
+            // Descargar logo desde URL usando cURL (más confiable en Laragon)
             Log::info('🚀 Descargando logo desde URL: ' . $logoUrl);
             $startTime = microtime(true);
 
-            // Configurar contexto con manejo SSL mejorado
-            $context = stream_context_create([
-                'http' => [
-                    'timeout' => 10, // 10 segundos timeout
-                    'user_agent' => 'GridPOS-Print-Server/1.0'
-                ],
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                ]
-            ]);
-
-            $logoData = file_get_contents($logoUrl, false, $context);
+            $logoData = $this->downloadWithCurl($logoUrl);
 
             if ($logoData === false) {
                 Log::error('Error descargando logo desde URL: ' . $logoUrl);
@@ -793,6 +780,82 @@ class PrinterController extends Controller
             Log::error('Error procesando logo desde URL: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Método auxiliar para descargar usando cURL (más confiable en Laragon)
+     */
+    private function downloadWithCurl($url)
+    {
+        if (!function_exists('curl_init')) {
+            Log::warning('cURL no está disponible, intentando con file_get_contents');
+            return $this->downloadWithFileGetContents($url);
+        }
+
+        $ch = curl_init();
+
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_USERAGENT => 'GridPOS-Print-Server/1.0',
+            CURLOPT_HTTPHEADER => [
+                'Accept: image/png,image/jpeg,image/gif,*/*',
+                'Cache-Control: no-cache'
+            ]
+        ]);
+
+        $data = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+
+        curl_close($ch);
+
+        if ($error) {
+            Log::error('Error cURL: ' . $error);
+            return false;
+        }
+
+        if ($httpCode !== 200) {
+            Log::error('HTTP Error: ' . $httpCode . ' para URL: ' . $url);
+            return false;
+        }
+
+        if (empty($data)) {
+            Log::error('Datos vacíos descargados de: ' . $url);
+            return false;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Método de respaldo usando file_get_contents
+     */
+    private function downloadWithFileGetContents($url)
+    {
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 30,
+                'user_agent' => 'GridPOS-Print-Server/1.0',
+                'header' => [
+                    'Accept: image/png,image/jpeg,image/gif,*/*',
+                    'Cache-Control: no-cache'
+                ]
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            ]
+        ]);
+
+        return file_get_contents($url, false, $context);
     }
 
     /**
