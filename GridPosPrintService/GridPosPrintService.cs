@@ -9,6 +9,9 @@ using System.Text;
 using System.IO;
 using System.Drawing;
 using System.ServiceProcess;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 namespace GridPosPrintService
 {
@@ -25,7 +28,7 @@ namespace GridPosPrintService
     /// </summary>
     public partial class GridPosPrintService : ServiceBase
     {
-        private Timer _monitorTimer;
+        private System.Timers.Timer _monitorTimer;
         private HttpClient _httpClient;
         private string _apiBaseUrl;
         private string _connectionString;
@@ -57,7 +60,7 @@ namespace GridPosPrintService
                 _httpClient.Timeout = TimeSpan.FromMilliseconds(HTTP_TIMEOUT_MS);
 
                 // Configurar timer ultra eficiente
-                _monitorTimer = new Timer(MONITOR_INTERVAL_MS);
+                _monitorTimer = new System.Timers.Timer(MONITOR_INTERVAL_MS);
                 _monitorTimer.Elapsed += OnMonitorTimer;
 
                 WriteLog("GridPos Print Service inicializado correctamente");

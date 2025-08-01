@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Http;
 using System.Text.Json;
 using System.Drawing;
 using System.Drawing.Printing;
+using System.Text;
 
 namespace GridPosPrintService
 {
