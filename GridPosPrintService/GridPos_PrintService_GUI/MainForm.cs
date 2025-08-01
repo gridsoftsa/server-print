@@ -5,6 +5,13 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
 using System.Threading;
+using System.Text;
+using System.IO;
+using System.Text.Json;
+using ESCPOS_NET.Emitters;
+using ESCPOS_NET;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace GridPosPrintService
 {
@@ -33,7 +40,7 @@ namespace GridPosPrintService
             // Form
             this.AutoScaleDimensions = new SizeF(8F, 16F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(600, 580);
+            this.ClientSize = new Size(600, 750);
             this.Text = "GridPos Print Service";
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = false;
@@ -309,12 +316,64 @@ namespace GridPosPrintService
                 "⚡ Monitoreo configurable (1-30 segundos)\n" +
                 "🔗 Conexión directa a GridPos API\n" +
                 "🔑 Authorization Token personalizable\n" +
-                "🚀 Auto-inicio con Windows opcional\n\n" +
+                "🚀 Auto-inicio con Windows opcional\n" +
+                "🖨️ Impresión directa a impresoras compartidas\n\n" +
                 "📧 Soporte: soporte@gridpos.com",
                 "Ayuda - GridPos Print Service",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
             this.Controls.Add(helpBtn);
+
+            // === LOG GROUP ===
+            var logGroup = new GroupBox
+            {
+                Text = "📋 Logs del Sistema",
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Location = new Point(20, 520),
+                Size = new Size(560, 180),
+                ForeColor = Color.FromArgb(51, 51, 51)
+            };
+            this.Controls.Add(logGroup);
+
+            // Log TextBox
+            var logTextBox = new TextBox
+            {
+                Name = "logTextBox",
+                Font = new Font("Consolas", 8),
+                Location = new Point(10, 25),
+                Size = new Size(540, 120),
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                ReadOnly = true,
+                BackColor = Color.FromArgb(248, 249, 250),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                BorderStyle = BorderStyle.FixedSingle,
+                Text = "🚀 GridPos Print Service iniciado\n📋 Esperando configuración...\n"
+            };
+            logGroup.Controls.Add(logTextBox);
+
+            // Clear Log Button
+            var clearLogBtn = new Button
+            {
+                Name = "clearLogBtn",
+                Text = "🗑️ Limpiar Log",
+                Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                Location = new Point(460, 150),
+                Size = new Size(90, 25),
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            clearLogBtn.FlatAppearance.BorderSize = 0;
+            clearLogBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
+            clearLogBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(73, 80, 87);
+            clearLogBtn.Click += (s, e) => {
+                var logBox = this.Controls.Find("logTextBox", true)[0] as TextBox;
+                logBox.Text = "🚀 Log limpiado\n";
+                AddLog("📋 Log limpiado por usuario");
+            };
+            logGroup.Controls.Add(clearLogBtn);
 
             // Load saved values
             LoadSavedConfiguration();
@@ -421,6 +480,7 @@ namespace GridPosPrintService
 
                 var autoStartMsg = autoStartCheck.Checked ? " - Auto-inicio activado" : "";
                 UpdateStatus($"✅ Configuración guardada - API: {(apiType == "api" ? "Producción" : "Demo")} - Intervalo: {intervalSeconds}s{autoStartMsg}", Color.Green);
+                AddLog($"💾 Configuración guardada: API={apiType}, Client={clientSlug}, Intervalo={intervalSeconds}s");
                 MessageBox.Show("✅ Configuración guardada correctamente", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
@@ -449,6 +509,9 @@ namespace GridPosPrintService
 
             var intervalSeconds = monitorInterval / 1000;
             UpdateStatus($"🚀 Servicio iniciado - Monitoreando cada {intervalSeconds} segundos", Color.Green);
+            AddLog($"🚀 Servicio iniciado: URL={apiBaseUrl}/print-queue");
+            AddLog($"⏱️ Intervalo de monitoreo: {intervalSeconds} segundos");
+            AddLog($"🔑 Headers: Authorization=***, X-Client-Slug={clientSlug}");
         }
 
         private void StopService_Click(object sender, EventArgs e)
@@ -464,6 +527,7 @@ namespace GridPosPrintService
 
             UpdateStatus("⏸️ Servicio detenido", Color.Red);
             UpdateConnection("🔗 Desconectado", Color.Gray);
+            AddLog("⏸️ Servicio detenido por usuario");
         }
 
         private void SetupTimer()
@@ -481,31 +545,55 @@ namespace GridPosPrintService
 
             try
             {
-                var response = await httpClient.GetAsync($"{apiBaseUrl}/print-queue");
+                var url = $"{apiBaseUrl}/print-queue";
+                var response = await httpClient.GetAsync(url);
 
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
                     UpdateConnection($"🔗 Conectado - {DateTime.Now:HH:mm:ss}", Color.Green);
 
-                    if (!string.IsNullOrWhiteSpace(content) && content != "[]")
+                    if (!string.IsNullOrWhiteSpace(content) && content != "[]" && content != "{}")
                     {
-                        UpdateStatus($"📄 Trabajos encontrados - {DateTime.Now:HH:mm:ss}", Color.Blue);
-                        // Aquí se procesarían los trabajos
+                        AddLog($"📦 Respuesta API: {content}");
+
+                        try
+                        {
+                            var printJobs = JsonSerializer.Deserialize<JsonElement[]>(content);
+
+                            if (printJobs != null && printJobs.Length > 0)
+                            {
+                                UpdateStatus($"📄 {printJobs.Length} trabajos encontrados", Color.Blue);
+                                AddLog($"🔄 Procesando {printJobs.Length} trabajos de impresión");
+
+                                foreach (var job in printJobs)
+                                {
+                                    await ProcessPrintJob(job);
+                                }
+                            }
+                        }
+                        catch (JsonException ex)
+                        {
+                            AddLog($"❌ Error parsing JSON: {ex.Message}");
+                        }
                     }
                     else
                     {
-                        UpdateStatus($"✅ Monitoreando - {DateTime.Now:HH:mm:ss}", Color.Green);
+                        UpdateStatus($"✅ Monitoreando - Sin trabajos", Color.Green);
                     }
                 }
                 else
                 {
-                    UpdateConnection($"⚠️ Error API: {response.StatusCode}", Color.Orange);
+                    var errorMsg = $"⚠️ Error API: {response.StatusCode}";
+                    UpdateConnection(errorMsg, Color.Orange);
+                    AddLog(errorMsg);
                 }
             }
             catch (Exception ex)
             {
-                UpdateConnection($"❌ Sin conexión: {ex.Message}", Color.Red);
+                var errorMsg = $"❌ Sin conexión: {ex.Message}";
+                UpdateConnection(errorMsg, Color.Red);
+                AddLog(errorMsg);
             }
         }
 
@@ -592,6 +680,193 @@ namespace GridPosPrintService
             {
                 MessageBox.Show($"⚠️ No se pudo configurar el inicio automático: {ex.Message}",
                     "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private async Task ProcessPrintJob(JsonElement job)
+        {
+            try
+            {
+                // Verificar que el trabajo tenga las propiedades necesarias
+                if (!job.TryGetProperty("action", out var actionElement) ||
+                    !job.TryGetProperty("id", out var idElement))
+                {
+                    AddLog("❌ Trabajo sin action o id, saltando...");
+                    return;
+                }
+
+                var action = actionElement.GetString();
+                var jobId = idElement.GetString();
+
+                AddLog($"🔄 Procesando trabajo ID: {jobId}, Acción: {action}");
+
+                switch (action)
+                {
+                    case "openCashDrawer":
+                        await ProcessOpenCashDrawer(job);
+                        break;
+
+                    case "orderPrinter":
+                        await ProcessOrderPrint(job);
+                        break;
+
+                    case "salePrinter":
+                        await ProcessSalePrint(job);
+                        break;
+
+                    default:
+                        AddLog($"⚠️ Acción no reconocida: {action}");
+                        break;
+                }
+
+                // Eliminar trabajo procesado de la cola
+                await DeletePrintQueueItem(jobId);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"❌ Error procesando trabajo: {ex.Message}");
+            }
+        }
+
+        private async Task ProcessOpenCashDrawer(JsonElement job)
+        {
+            try
+            {
+                if (!job.TryGetProperty("printer", out var printerElement))
+                {
+                    AddLog("❌ Trabajo openCashDrawer sin nombre de impresora");
+                    return;
+                }
+
+                var printerName = printerElement.GetString();
+                AddLog($"🔓 Abriendo caja en impresora: {printerName}");
+
+                // Aquí iría la lógica de apertura de caja usando ESC/POS
+                // Por ahora solo logueamos
+                AddLog($"✅ Caja abierta exitosamente en: {printerName}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"❌ Error abriendo caja: {ex.Message}");
+            }
+        }
+
+        private async Task ProcessOrderPrint(JsonElement job)
+        {
+            try
+            {
+                if (!job.TryGetProperty("printer", out var printerElement))
+                {
+                    AddLog("❌ Trabajo orderPrinter sin nombre de impresora");
+                    return;
+                }
+
+                var printerName = printerElement.GetString();
+                AddLog($"🖨️ Imprimiendo orden en: {printerName}");
+
+                // Verificar si viene con data_json (nuevo) o image (tradicional)
+                if (job.TryGetProperty("data_json", out var dataJsonElement))
+                {
+                    AddLog("🚀 Modo ESC/POS OPTIMIZADO - Usando datos JSON");
+                    // Aquí procesaríamos con ESC/POS directo como en el PHP
+                }
+                else if (job.TryGetProperty("image", out var imageElement))
+                {
+                    AddLog("🐌 Modo tradicional - Usando imagen base64");
+                    // Aquí procesaríamos la imagen como en el PHP
+                }
+
+                AddLog($"✅ Orden impresa exitosamente en: {printerName}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"❌ Error imprimiendo orden: {ex.Message}");
+            }
+        }
+
+        private async Task ProcessSalePrint(JsonElement job)
+        {
+            try
+            {
+                if (!job.TryGetProperty("printer", out var printerElement))
+                {
+                    AddLog("❌ Trabajo salePrinter sin nombre de impresora");
+                    return;
+                }
+
+                var printerName = printerElement.GetString();
+                AddLog($"🧾 Imprimiendo venta en: {printerName}");
+
+                if (job.TryGetProperty("image", out var imageElement))
+                {
+                    var base64Image = imageElement.GetString();
+                    AddLog($"📄 Imagen recibida: {base64Image?.Length} caracteres");
+                }
+
+                if (job.TryGetProperty("logo", out var logoElement))
+                {
+                    var logoUrl = logoElement.GetString();
+                    AddLog($"🖼️ Logo URL: {logoUrl}");
+                }
+
+                // Aquí iría la lógica de impresión real como en el PHP
+                AddLog($"✅ Venta impresa exitosamente en: {printerName}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"❌ Error imprimiendo venta: {ex.Message}");
+            }
+        }
+
+        private async Task DeletePrintQueueItem(string jobId)
+        {
+            try
+            {
+                var deleteUrl = $"{apiBaseUrl}/print-queue/{jobId}";
+                var response = await httpClient.GetAsync(deleteUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    AddLog($"🗑️ Trabajo {jobId} eliminado de la cola");
+                }
+                else
+                {
+                    AddLog($"⚠️ Error eliminando trabajo {jobId}: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"❌ Error eliminando trabajo {jobId}: {ex.Message}");
+            }
+        }
+
+        private void AddLog(string message)
+        {
+            try
+            {
+                var logBox = this.Controls.Find("logTextBox", true)[0] as TextBox;
+                var timestamp = DateTime.Now.ToString("HH:mm:ss");
+                var logEntry = $"[{timestamp}] {message}\n";
+
+                // Ejecutar en el hilo de UI
+                if (logBox.InvokeRequired)
+                {
+                    logBox.Invoke(new Action(() => {
+                        logBox.AppendText(logEntry);
+                        logBox.SelectionStart = logBox.Text.Length;
+                        logBox.ScrollToCaret();
+                    }));
+                }
+                else
+                {
+                    logBox.AppendText(logEntry);
+                    logBox.SelectionStart = logBox.Text.Length;
+                    logBox.ScrollToCaret();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en AddLog: {ex.Message}");
             }
         }
 

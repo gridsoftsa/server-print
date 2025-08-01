@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="7.0.3" />
+    <PackageReference Include="ESCPOS_NET" Version="2.6.2" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.4" />
   </ItemGroup>
 
 </Project>
