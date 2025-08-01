@@ -97,56 +97,144 @@ echo [HH:mm:ss] 🗑️ Trabajo eliminado de la cola: job_12345
 echo [HH:mm:ss] ✅ Servicio funcionando correctamente
 echo.
 
-REM Verificar .NET
-echo 🔍 Verificando .NET SDK...
-dotnet --version >nul 2>&1
-if %errorLevel% neq 0 (
-    echo ❌ ERROR: .NET SDK no está instalado
+REM Verificar .NET SDK en Windows
+echo 🔍 Verificando .NET SDK en Windows...
+echo.
+
+REM Buscar dotnet.exe en ubicaciones comunes de Windows
+set DOTNET_PATH=""
+if exist "C:\Program Files\dotnet\dotnet.exe" (
+    set DOTNET_PATH="C:\Program Files\dotnet\dotnet.exe"
+) else if exist "C:\Program Files (x86)\dotnet\dotnet.exe" (
+    set DOTNET_PATH="C:\Program Files (x86)\dotnet\dotnet.exe"
+) else (
+    REM Intentar usar dotnet del PATH
+    where dotnet >nul 2>&1
+    if %errorlevel% equ 0 (
+        set DOTNET_PATH="dotnet"
+    )
+)
+
+if %DOTNET_PATH%=="" (
+    echo ❌ ERROR: .NET SDK no encontrado en Windows
     echo.
-    echo 📥 DESCARGAR .NET 6 SDK:
+    echo 🔍 UBICACIONES VERIFICADAS:
+    echo    ❌ C:\Program Files\dotnet\dotnet.exe
+    echo    ❌ C:\Program Files (x86)\dotnet\dotnet.exe
+    echo    ❌ Variable PATH del sistema
+    echo.
+    echo 📥 SOLUCIÓN - INSTALAR .NET 6 SDK:
+    echo ==========================================
+    echo.
+    echo 🚀 OPCIÓN 1 - INSTALACIÓN AUTOMÁTICA:
+    echo    📁 Ejecutar: INSTALAR_DOTNET.bat
+    echo    ⚡ Descarga e instala automáticamente
+    echo.
+    echo 🔧 OPCIÓN 2 - INSTALACIÓN MANUAL:
     echo    🌐 https://dotnet.microsoft.com/download/dotnet/6.0
+    echo    📥 Descargar ".NET 6.0 SDK" (NO Runtime)
+    echo    🔧 Ejecutar instalador como Administrador
     echo.
-    echo 📋 INSTALACIÓN REQUERIDA:
-    echo    1. Descargar .NET 6 SDK (not Runtime)
-    echo    2. Ejecutar instalador como Administrador
-    echo    3. Reiniciar símbolo del sistema
-    echo    4. Volver a ejecutar este compilador
+    echo 🔍 OPCIÓN 3 - DIAGNÓSTICO:
+    echo    📁 Ejecutar: VERIFICAR_SISTEMA.bat
+    echo    🔍 Diagnóstico completo del sistema
+    echo.
+    echo ⚠️ IMPORTANTE: Descargar SDK, NO Runtime
     echo.
     pause
     exit /b 1
 )
 
-for /f "tokens=*" %%i in ('dotnet --version') do set DOTNET_VERSION=%%i
-echo ✅ .NET SDK detectado: %DOTNET_VERSION%
-echo.
-
-REM Verificar archivo principal
-if not exist "MainForm.cs" (
-    echo ❌ ERROR: MainForm.cs no encontrado
+REM Verificar versión de .NET
+echo 🔧 Ejecutando: %DOTNET_PATH% --version
+%DOTNET_PATH% --version >dotnet_version.tmp 2>&1
+if %errorLevel% neq 0 (
+    echo ❌ ERROR: .NET SDK instalado pero no funciona correctamente
     echo.
-    echo 📂 ARCHIVOS REQUERIDOS:
-    echo    ✅ MainForm.cs - Código principal con GUI
-    echo    ✅ GridPosPrintService.csproj - Configuración proyecto
-    echo    ✅ COMPILADOR_FINAL.bat - Este compilador
+    echo 🔧 SOLUCIONES POSIBLES:
+    echo 1. Reinstalar .NET 6 SDK como Administrador
+    echo 2. Verificar que no hay conflictos con versiones anteriores
+    echo 3. Reiniciar Windows después de la instalación
     echo.
-    echo 📥 SOLUCIÓN:
-    echo    Asegurar que todos los archivos estén en la misma carpeta
-    echo.
+    if exist dotnet_version.tmp del dotnet_version.tmp
     pause
     exit /b 1
+)
+
+REM Leer versión exitosamente
+set /p DOTNET_VERSION=<dotnet_version.tmp
+del dotnet_version.tmp
+echo ✅ .NET SDK detectado: %DOTNET_VERSION%
+echo ✅ Ubicación: %DOTNET_PATH%
+echo.
+
+REM Verificar archivos requeridos para compilación
+echo 📂 Verificando archivos del proyecto...
+
+set FILES_OK=1
+
+if not exist "MainForm.cs" (
+    echo ❌ MainForm.cs - FALTANTE
+    set FILES_OK=0
+) else (
+    echo ✅ MainForm.cs - Encontrado
 )
 
 if not exist "GridPosPrintService.csproj" (
-    echo ❌ ERROR: GridPosPrintService.csproj no encontrado
+    echo ❌ GridPosPrintService.csproj - FALTANTE
+    set FILES_OK=0
+) else (
+    echo ✅ GridPosPrintService.csproj - Encontrado
+)
+
+if not exist "Program.cs" (
+    echo ⚠️ Program.cs - FALTANTE (se creará automáticamente)
+
+    echo using System; > Program.cs
+    echo using System.Windows.Forms; >> Program.cs
+    echo. >> Program.cs
+    echo namespace GridPosPrintService >> Program.cs
+    echo { >> Program.cs
+    echo     internal static class Program >> Program.cs
+    echo     { >> Program.cs
+    echo         [STAThread] >> Program.cs
+    echo         static void Main^(^) >> Program.cs
+    echo         { >> Program.cs
+    echo             Application.EnableVisualStyles^(^); >> Program.cs
+    echo             Application.SetCompatibleTextRenderingDefault^(false^); >> Program.cs
+    echo             Application.Run^(new MainForm^(^)^); >> Program.cs
+    echo         } >> Program.cs
+    echo     } >> Program.cs
+    echo } >> Program.cs
+
+    echo ✅ Program.cs - Creado automáticamente
+) else (
+    echo ✅ Program.cs - Encontrado
+)
+
+if %FILES_OK%==0 (
     echo.
-    echo 📋 SOLUCIÓN:
-    echo    Crear archivo .csproj con dependencias necesarias
+    echo ❌ ERROR: Archivos requeridos faltantes
+    echo.
+    echo 📂 ESTRUCTURA REQUERIDA:
+    echo ========================
+    echo 📁 Carpeta del proyecto/
+    echo    📄 MainForm.cs - Código principal GUI (1,278 líneas)
+    echo    📄 GridPosPrintService.csproj - Configuración proyecto
+    echo    📄 Program.cs - Punto de entrada aplicación
+    echo    📄 COMPILADOR_FINAL.bat - Este compilador
+    echo.
+    echo 📥 SOLUCIÓN:
+    echo 1. Verificar que todos los archivos estén en la misma carpeta
+    echo 2. Descargar archivos faltantes del repositorio
+    echo 3. Verificar que MainForm.cs tenga el código completo
+    echo 4. Asegurar que GridPosPrintService.csproj tenga las dependencias
     echo.
     pause
     exit /b 1
 )
 
-echo ✅ Archivos fuente verificados
+echo ✅ Todos los archivos del proyecto verificados
 echo.
 
 REM Limpiar compilaciones anteriores
@@ -160,26 +248,36 @@ echo.
 
 REM Restaurar dependencias
 echo 📦 Restaurando dependencias NuGet...
-echo    ⏳ System.Text.Json 7.0.3
-echo    ⏳ ESCPOS_NET 3.0.0
+echo    ⏳ System.Text.Json 7.0.3 - Serialización JSON
+echo    ⏳ ESCPOS_NET 3.0.0 - Biblioteca impresión térmica
 echo.
 
-dotnet restore --verbosity quiet
+echo 🔧 Ejecutando: %DOTNET_PATH% restore --verbosity quiet
+%DOTNET_PATH% restore --verbosity quiet
 if %errorLevel% neq 0 (
-    echo ❌ ERROR: Fallo en restauración de dependencias
+    echo ❌ ERROR: Fallo en restauración de dependencias NuGet
     echo.
-    echo 📋 DEPENDENCIAS REQUERIDAS:
+    echo 🔍 POSIBLES CAUSAS:
+    echo    ❌ Sin conexión a internet
+    echo    ❌ Firewall bloqueando NuGet
+    echo    ❌ Configuración proxy incorrecta
+    echo    ❌ Archivo .csproj corrupto
+    echo.
+    echo 🔧 SOLUCIONES:
+    echo 1. Verificar conexión a internet
+    echo 2. Desactivar temporalmente antivirus/firewall
+    echo 3. Ejecutar como Administrador
+    echo 4. Verificar que el archivo GridPosPrintService.csproj existe
+    echo.
+    echo 📦 DEPENDENCIAS REQUERIDAS:
     echo    📦 System.Text.Json 7.0.3 - Serialización JSON
     echo    🖨️ ESCPOS_NET 3.0.0 - Biblioteca impresión térmica
-    echo.
-    echo 🔧 SOLUCIÓN:
-    echo    Verificar conexión a internet y configuración NuGet
     echo.
     pause
     exit /b 1
 )
 
-echo ✅ Dependencias restauradas correctamente
+echo ✅ Dependencias NuGet restauradas correctamente
 echo.
 
 REM Compilar
@@ -203,8 +301,10 @@ echo    ✅ UseWindowsForms=true (GUI nativa)
 echo.
 
 echo 🚀 Iniciando compilación final...
+echo 🔧 Comando: %DOTNET_PATH% publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o . --verbosity minimal
+echo.
 
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o . --verbosity minimal
+%DOTNET_PATH% publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o . --verbosity minimal
 
 if %errorLevel% equ 0 (
     echo.
@@ -456,21 +556,45 @@ if %errorLevel% equ 0 (
     echo ❌ ERROR EN LA COMPILACIÓN
     echo =========================
     echo.
-    echo 🔍 ERRORES DETECTADOS:
-    echo    Revisar mensajes de error mostrados arriba
+    echo 🔍 DIAGNÓSTICO DETALLADO:
+    echo    📊 Revisar mensajes de error mostrados arriba
+    echo    🔧 Usar: %DOTNET_PATH%
+    echo    📂 Directorio: %CD%
     echo.
-    echo 📋 ACCIONES RECOMENDADAS:
-    echo =========================
-    echo 1. 🔧 Verificar sintaxis MainForm.cs
-    echo 2. 📦 Comprobar GridPosPrintService.csproj válido
-    echo 3. 🌐 Verificar conexión internet (NuGet)
-    echo 4. 🔄 Intentar compilación limpia
-    echo 5. 🛠️ Ejecutar dotnet clean antes de compilar
+    echo 📋 SOLUCIONES COMUNES:
+    echo =====================
+    echo 1. 🧹 LIMPIAR Y REINTENTAR:
+    echo    - Cerrar todas las ventanas de comandos
+    echo    - Ejecutar como Administrador
+    echo    - Volver a ejecutar este compilador
+    echo.
+    echo 2. 🔧 VERIFICAR ARCHIVOS:
+    echo    - MainForm.cs debe tener 1,278 líneas exactas
+    echo    - GridPosPrintService.csproj debe incluir ESCPOS_NET 3.0.0
+    echo    - Program.cs debe existir (se crea automáticamente)
+    echo.
+    echo 3. 🌐 VERIFICAR CONEXIÓN:
+    echo    - Internet disponible para NuGet
+    echo    - Firewall no bloqueando descargas
+    echo    - Proxy corporativo configurado si aplica
+    echo.
+    echo 4. 🔄 REINSTALAR .NET:
+    echo    - Desinstalar versiones anteriores
+    echo    - Descargar .NET 6 SDK fresco
+    echo    - Instalar como Administrador
+    echo    - Reiniciar Windows
+    echo.
+    echo 5. 🚀 ALTERNATIVA - COMPILACIÓN MANUAL:
+    echo    ^> %DOTNET_PATH% clean
+    echo    ^> %DOTNET_PATH% restore
+    echo    ^> %DOTNET_PATH% build -c Release
+    echo    ^> %DOTNET_PATH% publish -c Release -r win-x64 --self-contained
     echo.
     echo 📞 SOPORTE TÉCNICO:
     echo ==================
     echo 📧 Email: soporte@gridpos.com
     echo 🌐 Web: https://gridpos.com/soporte
+    echo 📋 Incluir: Logs completos de error + versión .NET
     echo.
 )
 
