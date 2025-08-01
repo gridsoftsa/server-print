@@ -743,12 +743,12 @@ namespace GridPosPrintService
                 var printerName = printerElement.GetString();
                 AddLog($"🔓 Abriendo caja en impresora: {printerName}");
 
-                // 🚀 IMPRESIÓN REAL: Abrir caja usando ESC/POS-.NET
+                // 🚀 IMPRESIÓN REAL: Comando específico de apertura de caja
                 var printer = new SerialPrinter(portName: printerName, baudRate: 9600);
-                var e = new EPSON();
 
-                printer.Write(e.OpenCashDrawer());
-                AddLog($"✅ Caja abierta exitosamente en: {printerName}");
+                                // Comando ESC/POS específico para abrir caja
+                printer.Write(GetOpenDrawerCommand());
+                AddLog($"✅ Caja abierta exitosamente en: {printerName} con comando específico");
             }
             catch (Exception ex)
             {
@@ -1127,8 +1127,8 @@ namespace GridPosPrintService
                 // Abrir caja si se requiere (IGUAL AL PHP)
                 if (job.TryGetProperty("open_cash", out var openCashElement) && openCashElement.GetBoolean())
                 {
-                    printer.Write(e.OpenCashDrawer());
-                    AddLog("💰 Caja abierta como parte del proceso de impresión ESC/POS");
+                    printer.Write(GetOpenDrawerCommand());
+                    AddLog("💰 Caja abierta como parte del proceso de impresión ESC/POS con comando específico");
                 }
 
                 var executionTime = (DateTime.Now - startTime).TotalMilliseconds;
@@ -1172,6 +1172,16 @@ namespace GridPosPrintService
             {
                 AddLog($"❌ Error imprimiendo imagen: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Comando ESC/POS específico para abrir caja registradora
+        /// </summary>
+        private byte[] GetOpenDrawerCommand()
+        {
+            // Comando ESC/POS: ESC p m t1 t2
+            // 27 = ESC, 112 = 'p', 0 = m, 25 = t1, 250 = t2
+            return new byte[] { 27, 112, 0, 25, 250 };
         }
 
         /// <summary>
