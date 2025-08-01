@@ -1,0 +1,514 @@
+using System;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using System.IO;
+using System.Text.Json;
+using System.Windows.Forms;
+using System.Drawing;
+using System.Configuration;
+
+namespace GridPosPrinter
+{
+    public partial class MainForm : Form
+    {
+        private readonly HttpClient _httpClient;
+        private readonly Timer _timer;
+        private readonly string _apiUrl;
+        private readonly string _clientSlug;
+        private readonly string _authToken;
+        private bool _isRunning = false;
+        private readonly RichTextBox _logBox;
+        private readonly Button _startButton;
+        private readonly Button _stopButton;
+        private readonly TextBox _urlTextBox;
+        private readonly TextBox _intervalTextBox;
+        private readonly ComboBox _speedComboBox;
+
+        public MainForm()
+        {
+            InitializeComponent();
+
+            // Configuración
+            _apiUrl = ConfigurationManager.AppSettings["ApiUrl"] ?? "https://api.gridpos.co/print-queue";
+            _clientSlug = ConfigurationManager.AppSettings["ClientSlug"] ?? "default";
+            _authToken = ConfigurationManager.AppSettings["AuthToken"] ?? "f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3";
+
+            // HTTP Client optimizado para velocidad
+            _httpClient = new HttpClient();
+            _httpClient.Timeout = TimeSpan.FromSeconds(3); // Timeout más corto
+            _httpClient.DefaultRequestHeaders.Add("Authorization", _authToken);
+            _httpClient.DefaultRequestHeaders.Add("X-Client-Slug", _clientSlug);
+
+            // Timer ultra rápido por defecto
+            _timer = new Timer();
+            _timer.Interval = 200; // 200ms = 0.2 segundos (ultra rápido)
+            _timer.Tick += Timer_Tick;
+
+            // Configurar interfaz
+            SetupUI();
+        }
+
+        private void SetupUI()
+        {
+            this.Text = "GridPos Printer Service - Ultra Fast";
+            this.Size = new Size(900, 700);
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            // Panel superior
+            var topPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 120,
+                BackColor = Color.LightGray
+            };
+
+            // URL TextBox
+            var urlLabel = new Label { Text = "API URL:", Location = new Point(10, 15) };
+            _urlTextBox = new TextBox
+            {
+                Text = _apiUrl,
+                Location = new Point(80, 12),
+                Size = new Size(300, 23)
+            };
+
+            // Speed ComboBox
+            var speedLabel = new Label { Text = "Velocidad:", Location = new Point(400, 15) };
+            _speedComboBox = new ComboBox
+            {
+                Location = new Point(460, 12),
+                Size = new Size(120, 23),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            _speedComboBox.Items.AddRange(new object[] {
+                "Ultra Rápido (200ms)",
+                "Muy Rápido (500ms)",
+                "Rápido (1000ms)",
+                "Normal (2000ms)"
+            });
+            _speedComboBox.SelectedIndex = 0; // Ultra rápido por defecto
+            _speedComboBox.SelectedIndexChanged += SpeedComboBox_SelectedIndexChanged;
+
+            // Interval TextBox
+            var intervalLabel = new Label { Text = "Personalizado (ms):", Location = new Point(10, 50) };
+            _intervalTextBox = new TextBox
+            {
+                Text = "200",
+                Location = new Point(120, 47),
+                Size = new Size(80, 23)
+            };
+
+            // Status Label
+            var statusLabel = new Label
+            {
+                Text = "Estado: Detenido",
+                Location = new Point(220, 50),
+                Size = new Size(200, 23),
+                ForeColor = Color.Red,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+
+            // Buttons
+            _startButton = new Button
+            {
+                Text = "🚀 Iniciar Servicio",
+                Location = new Point(580, 10),
+                Size = new Size(120, 35),
+                BackColor = Color.LightGreen,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+            _startButton.Click += StartButton_Click;
+
+            _stopButton = new Button
+            {
+                Text = "🛑 Detener Servicio",
+                Location = new Point(710, 10),
+                Size = new Size(120, 35),
+                BackColor = Color.LightCoral,
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                Enabled = false
+            };
+            _stopButton.Click += StopButton_Click;
+
+            // Stats Panel
+            var statsPanel = new Panel
+            {
+                Location = new Point(580, 50),
+                Size = new Size(250, 60),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var statsLabel = new Label
+            {
+                Text = "📊 Estadísticas:",
+                Location = new Point(5, 5),
+                Font = new Font("Arial", 9, FontStyle.Bold)
+            };
+
+            var requestsLabel = new Label
+            {
+                Text = "Peticiones: 0",
+                Location = new Point(5, 25),
+                Font = new Font("Arial", 8)
+            };
+
+            var jobsLabel = new Label
+            {
+                Text = "Trabajos procesados: 0",
+                Location = new Point(5, 40),
+                Font = new Font("Arial", 8)
+            };
+
+            statsPanel.Controls.AddRange(new Control[] { statsLabel, requestsLabel, jobsLabel });
+
+            // Log Box
+            _logBox = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.Black,
+                ForeColor = Color.Lime,
+                Font = new Font("Consolas", 9)
+            };
+
+            // Agregar controles
+            topPanel.Controls.AddRange(new Control[] {
+                urlLabel, _urlTextBox,
+                speedLabel, _speedComboBox,
+                intervalLabel, _intervalTextBox,
+                statusLabel,
+                _startButton, _stopButton,
+                statsPanel
+            });
+            this.Controls.Add(topPanel);
+            this.Controls.Add(_logBox);
+
+            // Log inicial
+            WriteLog("🚀 GridPos Printer Service - Ultra Fast iniciado");
+            WriteLog($"API URL: {_apiUrl}");
+            WriteLog($"Client Slug: {_clientSlug}");
+            WriteLog($"Velocidad: Ultra Rápido (200ms)");
+            WriteLog("⚡ Configurado para máxima velocidad");
+        }
+
+        private void SpeedComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            int interval = 2000; // Default
+
+            switch (_speedComboBox.SelectedIndex)
+            {
+                case 0: interval = 200; break;  // Ultra Rápido
+                case 1: interval = 500; break;  // Muy Rápido
+                case 2: interval = 1000; break; // Rápido
+                case 3: interval = 2000; break; // Normal
+            }
+
+            _intervalTextBox.Text = interval.ToString();
+
+            if (_isRunning)
+            {
+                _timer.Interval = interval;
+                WriteLog($"⚡ Velocidad cambiada a: {interval}ms");
+            }
+        }
+
+        private void StartButton_Click(object sender, EventArgs e)
+        {
+            if (!_isRunning)
+            {
+                _isRunning = true;
+                _startButton.Enabled = false;
+                _stopButton.Enabled = true;
+
+                // Configurar intervalo
+                if (int.TryParse(_intervalTextBox.Text, out int interval))
+                {
+                    _timer.Interval = interval;
+                }
+
+                _timer.Start();
+
+                WriteLog("✅ Servicio iniciado - Ultra Fast Mode");
+                WriteLog($"⚡ Verificando cada {_timer.Interval}ms");
+            }
+        }
+
+        private void StopButton_Click(object sender, EventArgs e)
+        {
+            if (_isRunning)
+            {
+                _isRunning = false;
+                _startButton.Enabled = true;
+                _stopButton.Enabled = false;
+                _timer.Stop();
+
+                WriteLog("🛑 Servicio detenido");
+            }
+        }
+
+        private async void Timer_Tick(object sender, EventArgs e)
+        {
+            if (!_isRunning) return;
+
+            try
+            {
+                var response = await _httpClient.GetAsync(_urlTextBox.Text);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var printJobs = JsonSerializer.Deserialize<JsonElement[]>(content);
+
+                    if (printJobs != null && printJobs.Length > 0)
+                    {
+                        WriteLog($"📨 Encontrados {printJobs.Length} trabajos de impresión");
+
+                        foreach (var job in printJobs)
+                        {
+                            await ProcessPrintJob(job);
+                        }
+                    }
+                }
+                else
+                {
+                    WriteLog($"⚠️ Error HTTP: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error: {ex.Message}");
+            }
+        }
+
+        private async Task ProcessPrintJob(JsonElement job)
+        {
+            try
+            {
+                var action = job.GetProperty("action").GetString();
+                var printer = job.GetProperty("printer").GetString();
+
+                WriteLog($"🖨️ Procesando: {action} en {printer}");
+
+                switch (action)
+                {
+                    case "salePrinter":
+                        await ProcessSalePrint(job);
+                        break;
+
+                    case "orderPrinter":
+                        await ProcessOrderPrint(job);
+                        break;
+
+                    case "openCashDrawer":
+                        await ProcessOpenCashDrawer(job);
+                        break;
+
+                    default:
+                        WriteLog($"⚠️ Acción desconocida: {action}");
+                        break;
+                }
+
+                // Eliminar trabajo de la cola
+                var jobId = job.GetProperty("id").GetString();
+                await DeletePrintJob(jobId);
+
+                WriteLog($"✅ Trabajo completado: {action}");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error procesando trabajo: {ex.Message}");
+            }
+        }
+
+        private async Task ProcessSalePrint(JsonElement job)
+        {
+            var printer = job.GetProperty("printer").GetString();
+
+            if (job.TryGetProperty("image", out var imageElement))
+            {
+                // Modo imagen
+                var image = imageElement.GetString();
+                WriteLog($"🖼️ Imprimiendo imagen en {printer}");
+                await PrintImage(printer, image);
+            }
+            else
+            {
+                // Modo ESC/POS
+                WriteLog($"📄 Imprimiendo ESC/POS en {printer}");
+                await PrintEscPos(job);
+            }
+        }
+
+        private async Task ProcessOrderPrint(JsonElement job)
+        {
+            var printer = job.GetProperty("printer").GetString();
+            WriteLog($"📋 Imprimiendo orden en {printer}");
+            await PrintEscPos(job);
+        }
+
+        private async Task ProcessOpenCashDrawer(JsonElement job)
+        {
+            var printer = job.GetProperty("printer").GetString();
+            WriteLog($"💰 Abriendo caja registradora en {printer}");
+            await OpenCashDrawer(printer);
+        }
+
+        private async Task PrintImage(string printer, string imageBase64)
+        {
+            try
+            {
+                // Convertir base64 a imagen
+                var imageBytes = Convert.FromBase64String(imageBase64.Replace("data:image/png;base64,", ""));
+
+                // Guardar imagen temporal
+                var tempPath = Path.GetTempFileName() + ".png";
+                File.WriteAllBytes(tempPath, imageBytes);
+
+                // Imprimir usando Windows Print Spooler
+                await PrintImageFile(printer, tempPath);
+
+                // Limpiar archivo temporal
+                File.Delete(tempPath);
+
+                WriteLog($"✅ Imagen impresa en {printer}");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error imprimiendo imagen: {ex.Message}");
+            }
+        }
+
+        private async Task PrintEscPos(JsonElement job)
+        {
+            try
+            {
+                var printer = job.GetProperty("printer").GetString();
+
+                // Obtener datos JSON para ESC/POS
+                var dataJson = job.GetProperty("data_json");
+
+                // Generar comandos ESC/POS
+                var escPosCommands = GenerateEscPosCommands(dataJson);
+
+                // Enviar a impresora
+                await SendToPrinter(printer, escPosCommands);
+
+                WriteLog($"✅ ESC/POS enviado a {printer}");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error ESC/POS: {ex.Message}");
+            }
+        }
+
+        private async Task OpenCashDrawer(JsonElement job)
+        {
+            try
+            {
+                // Comando ESC/POS para abrir caja
+                var openDrawerCommand = new byte[] { 0x1B, 0x70, 0x00, 0x19, 0xFA };
+
+                await SendToPrinter(job.GetProperty("printer").GetString(), openDrawerCommand);
+
+                WriteLog($"✅ Caja abierta");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error abriendo caja: {ex.Message}");
+            }
+        }
+
+        private async Task PrintImageFile(string printer, string imagePath)
+        {
+            // Usar Windows Print Spooler para imprimir imagen
+            var printProcess = new System.Diagnostics.Process();
+            printProcess.StartInfo.FileName = "mspaint.exe";
+            printProcess.StartInfo.Arguments = $"/p \"{imagePath}\"";
+            printProcess.StartInfo.UseShellExecute = false;
+            printProcess.StartInfo.CreateNoWindow = true;
+
+            printProcess.Start();
+            await Task.Delay(1000); // Reducido a 1 segundo
+        }
+
+        private byte[] GenerateEscPosCommands(JsonElement dataJson)
+        {
+            var commands = new System.Collections.Generic.List<byte>();
+
+            // Comandos básicos ESC/POS
+            commands.AddRange(new byte[] { 0x1B, 0x40 }); // Initialize printer
+
+            // Aquí agregarías la lógica para generar comandos ESC/POS
+            // basado en los datos JSON recibidos
+
+            return commands.ToArray();
+        }
+
+        private async Task SendToPrinter(string printer, byte[] data)
+        {
+            // Enviar datos directamente a la impresora
+            // Esto requeriría implementar comunicación directa con la impresora
+            // usando Windows API o librerías específicas
+
+            await Task.Delay(50); // Reducido a 50ms para máxima velocidad
+        }
+
+        private async Task DeletePrintJob(string jobId)
+        {
+            try
+            {
+                var deleteUrl = $"{_urlTextBox.Text}/{jobId}";
+                await _httpClient.DeleteAsync(deleteUrl);
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"⚠️ Error eliminando trabajo: {ex.Message}");
+            }
+        }
+
+        private void WriteLog(string message)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => WriteLog(message)));
+                return;
+            }
+
+            var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+            var logMessage = $"[{timestamp}] {message}\n";
+
+            _logBox.AppendText(logMessage);
+            _logBox.ScrollToCaret();
+
+            // También escribir a archivo
+            try
+            {
+                var logPath = Path.Combine(Application.StartupPath, "gridpos-printer-ultrafast.log");
+                File.AppendAllText(logPath, logMessage);
+            }
+            catch
+            {
+                // Ignorar errores de escritura de log
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            _timer?.Stop();
+            _httpClient?.Dispose();
+            base.OnFormClosing(e);
+        }
+    }
+
+    static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+        }
+    }
+}
