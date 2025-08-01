@@ -1,46 +1,39 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo    GRIDPOS PRINT SERVICE - UNIFICADO FINAL
-echo      🎉 Versión completa y definitiva
+echo    GRIDPOS PRINT SERVICE - LOGS CORREGIDO
+echo      🔧 Errores de compilación solucionados
 echo ========================================
 echo.
 
-echo 🎯 TODAS LAS CARACTERÍSTICAS INCLUIDAS:
-echo ========================================
-echo ✅ Headers HTTP corregidos (como Laravel)
-echo ✅ Authorization Token por defecto configurado
-echo ✅ Intervalo de monitoreo dinámico (1-30 segundos)
-echo ✅ Auto-inicio configurable con Windows
-echo ✅ Interfaz Bootstrap moderna con efectos
-echo ✅ Validación completa de todos los campos
-echo ✅ URL correcta: /print-queue
-echo ✅ Sin errores "Unauthorized"
-echo ✅ Sistema de logs visual en tiempo real
-echo ✅ Procesamiento de trabajos como CheckDatabaseTableCommand.php
-echo ✅ Impresión a impresoras compartidas de Windows
+echo 🔧 CORRECCIONES APLICADAS:
+echo ===========================
+echo ✅ ESCPOS_NET actualizado a versión 3.0.0
+echo ✅ Conflicto de namespace Color resuelto
+echo ✅ Alias WinColor = System.Drawing.Color agregado
+echo ✅ Tamaño ventana ajustado a 600x580px
+echo ✅ Panel de logs compacto implementado
+echo ✅ Todas las referencias Color corregidas
 echo.
 
-echo 🎨 INTERFAZ MODERNA:
-echo ===================
-echo 🔵 Botón Guardar: Azul Bootstrap + efectos hover
-echo 🟢 Botón Iniciar: Verde Bootstrap + efectos hover
-echo 🔴 Botón Detener: Rojo Bootstrap + efectos hover
-echo 🟡 Botón Ayuda: Amarillo Bootstrap + efectos hover
-echo 📝 Campos de texto: Estilo flat moderno
-echo ⏱️ Campo intervalo: Configurable 1-30 segundos
-echo ☑️ Checkbox auto-inicio: Verde profesional
-echo 📋 Panel de logs: Consolas font, scroll automático
-echo 🗑️ Botón limpiar logs: Gris profesional
+echo 📋 CARACTERÍSTICAS DEL SISTEMA DE LOGS:
+echo =======================================
+echo 🖥️ Panel compacto: 450x45px con scroll
+echo 📝 Font Consolas para mejor legibilidad
+echo 🗑️ Botón limpiar integrado (80x45px)
+echo ⏱️ Timestamps automáticos [HH:mm:ss]
+echo 🔄 Thread-safe para async operations
+echo 📦 Logs de procesamiento de trabajos
 echo.
 
-echo 🔧 CONFIGURACIÓN CLIENTE:
-echo =========================
-echo 🌐 API: Producción/Demo (desplegable)
-echo 🏢 Client Slug: Texto personalizable
-echo 🔑 Auth Token: f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3 (por defecto)
-echo ⏱️ Intervalo: 1-30 segundos (por defecto: 2)
-echo ☑️ Auto-inicio: Opcional con Windows
+echo 🎯 LOGS IMPLEMENTADOS:
+echo ======================
+echo 🚀 Inicio de servicio con configuración
+echo 📦 Respuesta completa del API
+echo 🔄 Procesamiento de cada trabajo
+echo 🖨️ Detalles de impresión (nombre impresora)
+echo 🗑️ Eliminación de trabajos de la cola
+echo ❌ Errores y excepciones detallados
 echo.
 
 REM Verificar .NET
@@ -51,9 +44,6 @@ if %errorLevel% neq 0 (
     echo.
     echo 📥 DESCARGAR .NET 6 SDK:
     echo    🌐 https://dotnet.microsoft.com/download/dotnet/6.0
-    echo    📦 Descargar "SDK x64" para Windows
-    echo    ⚙️ Instalar y reiniciar Windows
-    echo    🔄 Ejecutar este compilador nuevamente
     echo.
     pause
     exit /b 1
@@ -68,32 +58,27 @@ echo 🧹 Limpiando compilaciones anteriores...
 if exist bin rmdir /s /q bin >nul 2>&1
 if exist obj rmdir /s /q obj >nul 2>&1
 if exist GridPosPrintService.exe del GridPosPrintService.exe >nul 2>&1
-if exist GridPosPrintService.pdb del GridPosPrintService.pdb >nul 2>&1
-if exist *.txt del *.txt >nul 2>&1
-if exist *.bat del INSTALADOR_*.bat PROBAR_*.bat MANUAL_*.txt >nul 2>&1
 echo ✅ Limpieza completada
 echo.
 
 REM Compilar
-echo 🔨 COMPILANDO VERSIÓN UNIFICADA FINAL...
-echo ==========================================
-echo 📋 Especificaciones técnicas:
-echo    🎯 Target: Windows 10/11 x64
-echo    🔑 Token: f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3 (incluido)
-echo    📡 Headers: Authorization + X-Client-Slug (corregidos)
-echo    ⏱️ Intervalo: 1-30 segundos (configurable)
-echo    🚀 Auto-inicio: Checkbox en interfaz
-echo    🎨 Estilo: Bootstrap 5 moderno
-echo    📱 Tamaño ventana: 600x580px
-echo    🌐 URLs: https://[api].gridpos.co/print-queue
+echo 🔨 COMPILANDO VERSIÓN CON LOGS CORREGIDOS...
+echo ============================================
+echo 📋 Correcciones técnicas:
+echo    🔧 ESCPOS_NET 3.0.0 (compatible)
+echo    🎨 WinColor alias para System.Drawing.Color
+echo    📏 Ventana: 600x580px (compacta)
+echo    📋 Panel logs: 450x45px (optimizado)
+echo    🗑️ Botón limpiar: 80x45px (integrado)
+echo    ⚡ Async/await thread-safe logging
 echo.
-echo 🔧 Iniciando compilación...
+echo 🔧 Iniciando compilación corregida...
 
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .
 
 if %errorLevel% equ 0 (
     echo.
-    echo ✅ ¡COMPILACIÓN EXITOSA!
+    echo ✅ ¡COMPILACIÓN EXITOSA - LOGS IMPLEMENTADOS!
     echo.
 
     if exist GridPosPrintService.exe (
@@ -102,248 +87,127 @@ if %errorLevel% equ 0 (
         echo 🚀 Ejecutable creado: GridPosPrintService.exe (!FILE_SIZE_MB! MB)
         echo.
 
-        echo 📦 CREANDO PAQUETE COMPLETO UNIFICADO...
+        echo 📦 CREANDO PAQUETE CON LOGS...
         echo.
 
-        REM Manual técnico completo
-        echo GRIDPOS PRINT SERVICE - VERSIÓN UNIFICADA FINAL > MANUAL_TECNICO_COMPLETO.txt
-        echo ============================================== >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🎉 VERSIÓN FINAL UNIFICADA - LISTA PARA PRODUCCIÓN >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 📋 CONFIGURACIÓN SUPER SIMPLE PARA EL CLIENTE: >> MANUAL_TECNICO_COMPLETO.txt
-        echo =============================================== >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🔧 PASO 1 - CAMPOS DE CONFIGURACIÓN: >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🌐 API: [Desplegable] >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Producción ^(https://api.gridpos.co/print-queue^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Demo ^(https://api-demo.gridpos.co/print-queue^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🏢 Client Slug: [Campo de texto] >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Ejemplo: mi-empresa, restaurante-abc, tienda-xyz >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Debe ser único por cliente >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🔑 Authorization Token: [Campo de texto] >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Por defecto: f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3 >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Cliente puede cambiarlo si tiene token personalizado >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo ⏱️ Intervalo de monitoreo: [Campo numérico] >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Rango: 1 a 30 segundos >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Por defecto: 2 segundos >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Recomendado: 2-5 segundos para mayor rapidez >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo ☑️ Auto-inicio con Windows: [Checkbox] >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Marcado: Se ejecuta automáticamente al iniciar Windows >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Desmarcado: Solo se ejecuta manualmente >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 📡 COMUNICACIÓN CON API: >> MANUAL_TECNICO_COMPLETO.txt
-        echo ========================= >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo Headers HTTP enviados ^(CORREGIDOS^): >> MANUAL_TECNICO_COMPLETO.txt
-        echo Authorization: f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3 >> MANUAL_TECNICO_COMPLETO.txt
-        echo X-Client-Slug: [client-slug-del-usuario] >> MANUAL_TECNICO_COMPLETO.txt
-        echo User-Agent: GridPosPrintService/1.0 >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo Método: GET >> MANUAL_TECNICO_COMPLETO.txt
-        echo URL: https://[api].gridpos.co/print-queue >> MANUAL_TECNICO_COMPLETO.txt
-        echo Frecuencia: Cada [intervalo-configurado] segundos >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🎨 CARACTERÍSTICAS DE INTERFAZ: >> MANUAL_TECNICO_COMPLETO.txt
-        echo ================================ >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🎯 Diseño Bootstrap 5 moderno: >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🔵 Botón "Guardar": Azul Bootstrap ^(#007BFF^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Hover: #0056B3 ^(azul más oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Click: #003F87 ^(azul muy oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🟢 Botón "Iniciar": Verde Bootstrap ^(#28A745^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Hover: #228B3A ^(verde más oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Click: #19692C ^(verde muy oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🔴 Botón "Detener": Rojo Bootstrap ^(#DC3545^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Hover: #C82333 ^(rojo más oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Click: #B01F29 ^(rojo muy oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🟡 Botón "Ayuda": Amarillo Bootstrap ^(#FFC107^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Hover: #FFAE00 ^(amarillo más oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Click: #D99300 ^(amarillo muy oscuro^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 📝 Todos los botones tienen: >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Bordes eliminados ^(FlatStyle.Flat^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Efectos hover suaves >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Efectos click con confirmación visual >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Tipografía Segoe UI en negrita >> MANUAL_TECNICO_COMPLETO.txt
-        echo    - Cursor pointer al pasar mouse >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🚀 VENTAJAS COMPETITIVAS: >> MANUAL_TECNICO_COMPLETO.txt
-        echo ========================== >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo vs Sistema anterior ^(VBS+PHP^): >> MANUAL_TECNICO_COMPLETO.txt
-        echo ✅ 15x más rápido ^(2 seg vs 30 seg^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo ✅ 90%% menos recursos ^(10MB vs 100MB+^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo ✅ Sin dependencias ^(vs PHP+Laragon^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo ✅ Instalación 1-clic ^(vs configuración manual^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo ✅ Interfaz moderna ^(vs solo consola^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo ✅ Auto-inicio integrado ^(vs scripts externos^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo ✅ Headers corregidos ^(vs errores Unauthorized^) >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo 🔧 SOLUCIÓN DE PROBLEMAS: >> MANUAL_TECNICO_COMPLETO.txt
-        echo ========================== >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo ❌ "Unauthorized": >> MANUAL_TECNICO_COMPLETO.txt
-        echo   ✅ Ya solucionado: Headers corregidos como Laravel >> MANUAL_TECNICO_COMPLETO.txt
-        echo   🔍 Verificar: Client Slug único y válido >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo ❌ No encuentra trabajos: >> MANUAL_TECNICO_COMPLETO.txt
-        echo   🌐 Verificar conexión a internet >> MANUAL_TECNICO_COMPLETO.txt
-        echo   🔧 Verificar API seleccionada correcta >> MANUAL_TECNICO_COMPLETO.txt
-        echo   🛡️ Verificar firewall de Windows >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo ❌ Intervalo muy lento/rápido: >> MANUAL_TECNICO_COMPLETO.txt
-        echo   ⚡ Para mayor rapidez: 1-2 segundos >> MANUAL_TECNICO_COMPLETO.txt
-        echo   💾 Para menos recursos: 5-10 segundos >> MANUAL_TECNICO_COMPLETO.txt
-        echo   ⚖️ Equilibrio recomendado: 2-3 segundos >> MANUAL_TECNICO_COMPLETO.txt
-        echo. >> MANUAL_TECNICO_COMPLETO.txt
-        echo ¡PROGRAMA UNIFICADO LISTO PARA PRODUCCIÓN! 🚀 >> MANUAL_TECNICO_COMPLETO.txt
+        REM Manual de logs
+        echo GRIDPOS PRINT SERVICE - SISTEMA DE LOGS > MANUAL_LOGS.txt
+        echo =============================================== >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo 📋 PANEL DE LOGS COMPACTO >> MANUAL_LOGS.txt
+        echo ========================= >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo 📏 Dimensiones: 450x45 píxeles >> MANUAL_LOGS.txt
+        echo 📝 Font: Consolas 8pt ^(monospace^) >> MANUAL_LOGS.txt
+        echo 📜 Scroll: Vertical automático >> MANUAL_LOGS.txt
+        echo 🗑️ Botón limpiar: Lateral derecho >> MANUAL_LOGS.txt
+        echo ⏱️ Timestamps: [HH:mm:ss] format >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo 🔄 TIPOS DE LOGS IMPLEMENTADOS >> MANUAL_LOGS.txt
+        echo =============================== >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo 🚀 INICIO DE SERVICIO: >> MANUAL_LOGS.txt
+        echo   [14:30:15] 🚀 Servicio iniciado: URL=https://api.gridpos.co/print-queue >> MANUAL_LOGS.txt
+        echo   [14:30:15] ⏱️ Intervalo de monitoreo: 2 segundos >> MANUAL_LOGS.txt
+        echo   [14:30:15] 🔑 Headers: Authorization=***, X-Client-Slug=mi-empresa >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo 📦 CONSULTA API: >> MANUAL_LOGS.txt
+        echo   [14:30:17] 📦 Respuesta API: [{"action":"salePrinter","id":"123",...}] >> MANUAL_LOGS.txt
+        echo   [14:30:17] 🔄 Procesando 1 trabajos de impresión >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo 🖨️ PROCESAMIENTO DE TRABAJOS: >> MANUAL_LOGS.txt
+        echo   [14:30:17] 🔄 Procesando trabajo ID: 123, Acción: salePrinter >> MANUAL_LOGS.txt
+        echo   [14:30:17] 🧾 Imprimiendo venta en: POS-80 >> MANUAL_LOGS.txt
+        echo   [14:30:17] 📄 Imagen recibida: 50000 caracteres >> MANUAL_LOGS.txt
+        echo   [14:30:17] 🖼️ Logo URL: https://empresa.com/logo.png >> MANUAL_LOGS.txt
+        echo   [14:30:17] ✅ Venta impresa exitosamente en: POS-80 >> MANUAL_LOGS.txt
+        echo   [14:30:17] 🗑️ Trabajo 123 eliminado de la cola >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo ❌ MANEJO DE ERRORES: >> MANUAL_LOGS.txt
+        echo   [14:30:20] ❌ Error parsing JSON: Invalid JSON format >> MANUAL_LOGS.txt
+        echo   [14:30:25] ⚠️ Error eliminando trabajo 456: NotFound >> MANUAL_LOGS.txt
+        echo   [14:30:30] ❌ Sin conexión: HttpRequestException >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo 🎯 VENTAJAS DEL SISTEMA DE LOGS >> MANUAL_LOGS.txt
+        echo ================================= >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo ✅ Monitoreo en tiempo real de operaciones >> MANUAL_LOGS.txt
+        echo ✅ Identificación rápida de problemas >> MANUAL_LOGS.txt
+        echo ✅ Trazabilidad completa de trabajos >> MANUAL_LOGS.txt
+        echo ✅ Interfaz compacta sin sobrecargar ventana >> MANUAL_LOGS.txt
+        echo ✅ Thread-safe para operaciones asíncronas >> MANUAL_LOGS.txt
+        echo ✅ Scroll automático a entradas más recientes >> MANUAL_LOGS.txt
+        echo ✅ Botón limpiar para gestión de memoria >> MANUAL_LOGS.txt
+        echo. >> MANUAL_LOGS.txt
+        echo ¡SISTEMA DE LOGS PROFESIONAL IMPLEMENTADO! 🚀 >> MANUAL_LOGS.txt
 
-        REM Instalador profesional unificado
-        echo @echo off > INSTALADOR_UNIFICADO.bat
-        echo chcp 65001 ^>nul >> INSTALADOR_UNIFICADO.bat
-        echo echo ======================================== >> INSTALADOR_UNIFICADO.bat
-        echo echo    GRIDPOS PRINT SERVICE - UNIFICADO >> INSTALADOR_UNIFICADO.bat
-        echo echo      🎉 Versión final definitiva >> INSTALADOR_UNIFICADO.bat
-        echo echo ======================================== >> INSTALADOR_UNIFICADO.bat
-        echo echo. >> INSTALADOR_UNIFICADO.bat
-        echo echo 🎯 CARACTERÍSTICAS UNIFICADAS: >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ Token pre-configurado >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ Headers corregidos ^(sin Unauthorized^) >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ Intervalo configurable ^(1-30 segundos^) >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ Auto-inicio opcional >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ Interfaz Bootstrap moderna >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ Efectos hover en todos los botones >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ Validación completa de campos >> INSTALADOR_UNIFICADO.bat
-        echo echo. >> INSTALADOR_UNIFICADO.bat
-        echo set INSTALL_DIR=C:\GridPos >> INSTALADOR_UNIFICADO.bat
-        echo echo 📁 Instalando versión unificada en: %%INSTALL_DIR%% >> INSTALADOR_UNIFICADO.bat
-        echo mkdir "%%INSTALL_DIR%%" 2^>nul >> INSTALADOR_UNIFICADO.bat
-        echo copy "GridPosPrintService.exe" "%%INSTALL_DIR%%\" ^>nul >> INSTALADOR_UNIFICADO.bat
-        echo copy "MANUAL_TECNICO_COMPLETO.txt" "%%INSTALL_DIR%%\" ^>nul >> INSTALADOR_UNIFICADO.bat
-        echo echo 🖥️ Creando acceso directo... >> INSTALADOR_UNIFICADO.bat
-        echo echo Set oWS = WScript.CreateObject("WScript.Shell"^) ^> CreateShortcut.vbs >> INSTALADOR_UNIFICADO.bat
-        echo echo sLinkFile = "%%USERPROFILE%%\Desktop\GridPos UNIFICADO FINAL.lnk" ^>^> CreateShortcut.vbs >> INSTALADOR_UNIFICADO.bat
-        echo echo Set oLink = oWS.CreateShortcut(sLinkFile^) ^>^> CreateShortcut.vbs >> INSTALADOR_UNIFICADO.bat
-        echo echo oLink.TargetPath = "%%INSTALL_DIR%%\GridPosPrintService.exe" ^>^> CreateShortcut.vbs >> INSTALADOR_UNIFICADO.bat
-        echo echo oLink.WorkingDirectory = "%%INSTALL_DIR%%" ^>^> CreateShortcut.vbs >> INSTALADOR_UNIFICADO.bat
-        echo echo oLink.Description = "GridPos Print Service - Versión Unificada Final" ^>^> CreateShortcut.vbs >> INSTALADOR_UNIFICADO.bat
-        echo echo oLink.Save ^>^> CreateShortcut.vbs >> INSTALADOR_UNIFICADO.bat
-        echo cscript CreateShortcut.vbs ^>nul 2^>^&1 >> INSTALADOR_UNIFICADO.bat
-        echo del CreateShortcut.vbs ^>nul 2^>^&1 >> INSTALADOR_UNIFICADO.bat
-        echo echo. >> INSTALADOR_UNIFICADO.bat
-        echo echo ✅ INSTALACIÓN COMPLETADA >> INSTALADOR_UNIFICADO.bat
-        echo echo. >> INSTALADOR_UNIFICADO.bat
-        echo echo 📍 Programa: %%INSTALL_DIR%%\GridPosPrintService.exe >> INSTALADOR_UNIFICADO.bat
-        echo echo 🖥️ Acceso directo: "GridPos UNIFICADO FINAL" >> INSTALADOR_UNIFICADO.bat
-        echo echo 📖 Manual técnico: %%INSTALL_DIR%%\MANUAL_TECNICO_COMPLETO.txt >> INSTALADOR_UNIFICADO.bat
-        echo echo. >> INSTALADOR_UNIFICADO.bat
-        echo echo 🚀 CONFIGURACIÓN SÚPER SIMPLE: >> INSTALADOR_UNIFICADO.bat
-        echo echo   1. API: Seleccionar Producción/Demo >> INSTALADOR_UNIFICADO.bat
-        echo echo   2. Client Slug: Escribir identificador >> INSTALADOR_UNIFICADO.bat
-        echo echo   3. Token: YA ESTÁ CONFIGURADO ✅ >> INSTALADOR_UNIFICADO.bat
-        echo echo   4. Intervalo: 2 segundos ^(recomendado^) >> INSTALADOR_UNIFICADO.bat
-        echo echo   5. Auto-inicio: Marcar si desea >> INSTALADOR_UNIFICADO.bat
-        echo echo   6. Guardar y listo >> INSTALADOR_UNIFICADO.bat
-        echo echo. >> INSTALADOR_UNIFICADO.bat
-        echo echo 🎉 ¡DISFRUTA TU SISTEMA ULTRA RÁPIDO Y MODERNO! >> INSTALADOR_UNIFICADO.bat
-        echo echo. >> INSTALADOR_UNIFICADO.bat
-        echo pause >> INSTALADOR_UNIFICADO.bat
+        REM Probador con logs
+        echo @echo off > PROBAR_CON_LOGS.bat
+        echo echo 🚀 Probando GridPos Print Service con Logs... >> PROBAR_CON_LOGS.bat
+        echo echo. >> PROBAR_CON_LOGS.bat
+        echo echo ✅ Ventana compacta: 600x580px >> PROBAR_CON_LOGS.bat
+        echo echo 📋 Panel de logs: Esquina inferior >> PROBAR_CON_LOGS.bat
+        echo echo 🗑️ Botón limpiar: Lateral derecho >> PROBAR_CON_LOGS.bat
+        echo echo ⏱️ Timestamps automáticos visible >> PROBAR_CON_LOGS.bat
+        echo echo 🔄 Logs en tiempo real funcionando >> PROBAR_CON_LOGS.bat
+        echo echo. >> PROBAR_CON_LOGS.bat
+        echo GridPosPrintService.exe >> PROBAR_CON_LOGS.bat
 
-        REM Probador rápido
-        echo @echo off > PROBAR_UNIFICADO.bat
-        echo echo 🚀 Probando GridPos Print Service Unificado... >> PROBAR_UNIFICADO.bat
-        echo echo. >> PROBAR_UNIFICADO.bat
-        echo echo ✅ Si aparece ventana moderna con 5 campos = PERFECTO >> PROBAR_UNIFICADO.bat
-        echo echo 🔑 Token ya viene configurado por defecto >> PROBAR_UNIFICADO.bat
-        echo echo ⏱️ Intervalo configurable ^(1-30 segundos^) >> PROBAR_UNIFICADO.bat
-        echo echo ☑️ Checkbox auto-inicio disponible >> PROBAR_UNIFICADO.bat
-        echo echo 🎨 Botones Bootstrap con efectos >> PROBAR_UNIFICADO.bat
-        echo echo. >> PROBAR_UNIFICADO.bat
-        echo GridPosPrintService.exe >> PROBAR_UNIFICADO.bat
-
-        echo    ✅ MANUAL_TECNICO_COMPLETO.txt - Documentación técnica
-        echo    ✅ INSTALADOR_UNIFICADO.bat - Instalador final
-        echo    ✅ PROBAR_UNIFICADO.bat - Prueba inmediata
+        echo    ✅ MANUAL_LOGS.txt - Documentación del sistema de logs
+        echo    ✅ PROBAR_CON_LOGS.bat - Prueba con logs habilitados
         echo.
         echo ========================================
-        echo      🎉 ¡VERSIÓN UNIFICADA COMPLETADA!
+        echo      🎉 ¡VERSIÓN CON LOGS COMPLETADA!
         echo ========================================
         echo.
-        echo 🔧 CONFIGURACIÓN FINAL INTEGRADA:
-        echo    🌐 API: Desplegable Producción/Demo
-        echo    🏢 Client Slug: Campo de texto
-        echo    🔑 Token: f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3 ^(incluido^)
-        echo    ⏱️ Intervalo: 1-30 segundos ^(campo numérico^)
-        echo    ☑️ Auto-inicio: Checkbox Windows
+        echo 🔧 SOLUCIONES APLICADAS:
+        echo    ✅ ESCPOS_NET 3.0.0 compatible
+        echo    ✅ Namespace conflicts resueltos
+        echo    ✅ WinColor alias implementado
+        echo    ✅ Ventana compacta 600x580px
+        echo    ✅ Panel logs optimizado
         echo.
-        echo 🎨 INTERFAZ BOOTSTRAP FINAL:
-        echo    🔵 Botón Guardar: Azul + hover + click
-        echo    🟢 Botón Iniciar: Verde + hover + click
-        echo    🔴 Botón Detener: Rojo + hover + click
-        echo    🟡 Botón Ayuda: Amarillo + hover + click
-        echo    📝 Campos: Flat moderno con validación
+        echo 📋 SISTEMA DE LOGS ACTIVO:
+        echo    ⏱️ Timestamps automáticos
+        echo    🔄 Logs thread-safe
+        echo    📦 Trazabilidad completa
+        echo    🗑️ Gestión de memoria
+        echo    📜 Scroll automático
         echo.
-        echo 📡 COMUNICACIÓN FINAL:
-        echo    ✅ Headers: Authorization + X-Client-Slug
-        echo    ✅ URL: https://[api].gridpos.co/print-queue
-        echo    ✅ Intervalo: Dinámico ^(configurado por usuario^)
-        echo    ✅ Sin errores "Unauthorized"
+        echo 🚀 FUNCIONALIDADES LOGS:
+        echo    📡 Consultas API logueadas
+        echo    🔄 Procesamiento de trabajos
+        echo    🖨️ Detalles de impresión
+        echo    ❌ Errores capturados
+        echo    🗑️ Limpieza de cola
         echo.
-        echo 🚀 VENTAJAS UNIFICADAS:
-        echo    ✅ 15x más rápido que sistema anterior
-        echo    ✅ 90%% menos recursos del sistema
-        echo    ✅ Sin dependencias externas
-        echo    ✅ Instalación automática
-        echo    ✅ Interfaz profesional moderna
-        echo    ✅ Configuración súper simple
-        echo.
-        echo 📦 ARCHIVOS FINALES PARA ENTREGAR:
+        echo 📦 ARCHIVOS LISTOS PARA ENTREGA:
         echo    🚀 GridPosPrintService.exe ^(!FILE_SIZE_MB! MB^)
-        echo    📖 MANUAL_TECNICO_COMPLETO.txt
-        echo    ⚙️ INSTALADOR_UNIFICADO.bat
-        echo    🧪 PROBAR_UNIFICADO.bat
+        echo    📖 MANUAL_LOGS.txt
+        echo    🧪 PROBAR_CON_LOGS.bat
         echo.
-        echo 🎯 PROCESO CLIENTE FINAL:
-        echo    1. Ejecutar INSTALADOR_UNIFICADO.bat
-        echo    2. Usar icono "GridPos UNIFICADO FINAL"
-        echo    3. Configurar API + Client Slug + Intervalo
-        echo    4. Token ya está configurado
-        echo    5. Marcar auto-inicio si desea
-        echo    6. ¡Funciona perfectamente!
+        echo 🎯 PRÓXIMO PASO: Implementar impresión física real
+        echo    🖨️ ESC/POS commands para impresoras compartidas
+        echo    🔗 Conexión directa con Windows Print Spooler
+        echo    📄 Procesamiento de imágenes base64
         echo.
-        echo 🎉 ¡SISTEMA COMPLETO, UNIFICADO Y LISTO!
-        echo    ⭐ Todas las funcionalidades integradas
-        echo    ⭐ Interfaz moderna y profesional
-        echo    ⭐ Sin errores ni dependencias
-        echo    ⭐ Configuración ultra simple
-        echo    ⭐ Rendimiento optimizado
+        echo 🎉 ¡COMPILACIÓN EXITOSA - LISTA PARA PRUEBAS!
         echo.
 
     ) else (
         echo ❌ ERROR: No se generó el ejecutable
         echo    Revisar errores de compilación mostrados arriba
-        echo    Verificar que todos los archivos .cs estén presentes
     )
 ) else (
     echo.
     echo ❌ ERROR EN LA COMPILACIÓN
     echo    Revisar errores mostrados arriba
-    echo    Verificar conectividad para descargar paquetes NuGet
-    echo    Verificar permisos de escritura en el directorio
     echo.
 )
 
 echo.
-echo 🎉 COMPILADOR UNIFICADO FINAL - GridPos Print Service
+echo 🎉 COMPILADOR LOGS CORREGIDO - GridPos Print Service
 echo 📧 Soporte técnico: soporte@gridpos.com
-echo 🌐 Documentación: Revisar MANUAL_TECNICO_COMPLETO.txt
+echo 📖 Manual de logs: MANUAL_LOGS.txt
 echo.
 pause

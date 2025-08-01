@@ -13,6 +13,9 @@ using ESCPOS_NET;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
+// Alias para evitar conflictos de namespace
+using WinColor = System.Drawing.Color;
+
 namespace GridPosPrintService
 {
     public partial class MainForm : Form
@@ -40,19 +43,19 @@ namespace GridPosPrintService
             // Form
             this.AutoScaleDimensions = new SizeF(8F, 16F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(600, 750);
+            this.ClientSize = new Size(600, 580);
             this.Text = "GridPos Print Service";
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.BackColor = Color.White;
+            this.BackColor = WinColor.White;
 
             // Logo/Title
             var titleLabel = new Label
             {
                 Text = "🚀 GRIDPOS PRINT SERVICE",
                 Font = new Font("Segoe UI", 18, FontStyle.Bold),
-                ForeColor = Color.DarkBlue,
+                ForeColor = WinColor.DarkBlue,
                 Location = new Point(50, 20),
                 Size = new Size(500, 40),
                 TextAlign = ContentAlignment.MiddleCenter
@@ -63,7 +66,7 @@ namespace GridPosPrintService
             {
                 Text = "Sistema Ultra Rápido de Impresión",
                 Font = new Font("Segoe UI", 10),
-                ForeColor = Color.Gray,
+                ForeColor = WinColor.Gray,
                 Location = new Point(50, 60),
                 Size = new Size(500, 25),
                 TextAlign = ContentAlignment.MiddleCenter
@@ -77,7 +80,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(20, 100),
                 Size = new Size(560, 200),
-                ForeColor = Color.DarkBlue
+                ForeColor = WinColor.DarkBlue
             };
             this.Controls.Add(configGroup);
 
@@ -99,7 +102,7 @@ namespace GridPosPrintService
                 Size = new Size(200, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White
+                BackColor = WinColor.White
             };
             apiCombo.Items.AddRange(new[] { "Producción (api.gridpos.co)", "Demo (api-demo.gridpos.co)" });
             apiCombo.SelectedIndex = 0;
@@ -123,7 +126,7 @@ namespace GridPosPrintService
                 Size = new Size(200, 25),
                 PlaceholderText = "Ej: mi-empresa",
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.White
+                BackColor = WinColor.White
             };
             configGroup.Controls.Add(clientText);
 
@@ -146,7 +149,7 @@ namespace GridPosPrintService
                 PlaceholderText = "Token de autorización",
                 Text = "f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3",
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.White
+                BackColor = WinColor.White
             };
             configGroup.Controls.Add(authText);
 
@@ -168,7 +171,7 @@ namespace GridPosPrintService
                 Size = new Size(60, 25),
                 Text = "2",
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.White,
+                BackColor = WinColor.White,
                 TextAlign = HorizontalAlignment.Center
             };
             configGroup.Controls.Add(intervalText);
@@ -179,7 +182,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 8),
                 Location = new Point(220, 126),
                 Size = new Size(150, 20),
-                ForeColor = Color.Gray
+                ForeColor = WinColor.Gray
             };
             configGroup.Controls.Add(intervalHelpLabel);
 
@@ -191,7 +194,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 Location = new Point(20, 155),
                 Size = new Size(300, 20),
-                ForeColor = Color.FromArgb(40, 167, 69),
+                ForeColor = WinColor.FromArgb(40, 167, 69),
                 FlatStyle = FlatStyle.Flat
             };
             configGroup.Controls.Add(autoStartCheck);
@@ -204,14 +207,14 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 Location = new Point(370, 95),
                 Size = new Size(170, 35),
-                BackColor = Color.FromArgb(0, 123, 255),
-                ForeColor = Color.White,
+                BackColor = WinColor.FromArgb(0, 123, 255),
+                ForeColor = WinColor.White,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             saveConfigBtn.FlatAppearance.BorderSize = 0;
-            saveConfigBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 86, 179);
-            saveConfigBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(0, 63, 135);
+            saveConfigBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(0, 86, 179);
+            saveConfigBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(0, 63, 135);
             saveConfigBtn.Click += SaveConfig_Click;
             configGroup.Controls.Add(saveConfigBtn);
 
@@ -222,7 +225,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(20, 320),
                 Size = new Size(560, 120),
-                ForeColor = Color.DarkGreen
+                ForeColor = WinColor.DarkGreen
             };
             this.Controls.Add(statusGroup);
 
@@ -234,7 +237,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 Location = new Point(20, 30),
                 Size = new Size(400, 25),
-                ForeColor = Color.Red
+                ForeColor = WinColor.Red
             };
             statusGroup.Controls.Add(statusLabel);
 
@@ -246,7 +249,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9),
                 Location = new Point(20, 60),
                 Size = new Size(400, 20),
-                ForeColor = Color.Gray
+                ForeColor = WinColor.Gray
             };
             statusGroup.Controls.Add(connectionLabel);
 
@@ -258,15 +261,15 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(50, 460),
                 Size = new Size(180, 45),
-                BackColor = Color.FromArgb(40, 167, 69),
-                ForeColor = Color.White,
+                BackColor = WinColor.FromArgb(40, 167, 69),
+                ForeColor = WinColor.White,
                 FlatStyle = FlatStyle.Flat,
                 Enabled = false,
                 Cursor = Cursors.Hand
             };
             startBtn.FlatAppearance.BorderSize = 0;
-            startBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 139, 58);
-            startBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 105, 44);
+            startBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(34, 139, 58);
+            startBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(25, 105, 44);
             startBtn.Click += StartService_Click;
             this.Controls.Add(startBtn);
 
@@ -277,15 +280,15 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(250, 460),
                 Size = new Size(180, 45),
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
+                BackColor = WinColor.FromArgb(220, 53, 69),
+                ForeColor = WinColor.White,
                 FlatStyle = FlatStyle.Flat,
                 Enabled = false,
                 Cursor = Cursors.Hand
             };
             stopBtn.FlatAppearance.BorderSize = 0;
-            stopBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
-            stopBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(176, 27, 41);
+            stopBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(200, 35, 51);
+            stopBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(176, 27, 41);
             stopBtn.Click += StopService_Click;
             this.Controls.Add(stopBtn);
 
@@ -295,14 +298,14 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 Location = new Point(450, 460),
                 Size = new Size(100, 45),
-                BackColor = Color.FromArgb(255, 193, 7),
-                ForeColor = Color.FromArgb(33, 37, 41),
+                BackColor = WinColor.FromArgb(255, 193, 7),
+                ForeColor = WinColor.FromArgb(33, 37, 41),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             helpBtn.FlatAppearance.BorderSize = 0;
-            helpBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 174, 0);
-            helpBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(217, 147, 0);
+            helpBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(255, 174, 0);
+            helpBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(217, 147, 0);
             helpBtn.Click += (s, e) => MessageBox.Show(
                 "🚀 GRIDPOS PRINT SERVICE\n\n" +
                 "1. Configura tu API (Producción/Demo)\n" +
@@ -329,9 +332,9 @@ namespace GridPosPrintService
             {
                 Text = "📋 Logs del Sistema",
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Location = new Point(20, 520),
-                Size = new Size(560, 180),
-                ForeColor = Color.FromArgb(51, 51, 51)
+                Location = new Point(20, 460),
+                Size = new Size(560, 100),
+                ForeColor = WinColor.FromArgb(51, 51, 51)
             };
             this.Controls.Add(logGroup);
 
@@ -341,12 +344,12 @@ namespace GridPosPrintService
                 Name = "logTextBox",
                 Font = new Font("Consolas", 8),
                 Location = new Point(10, 25),
-                Size = new Size(540, 120),
+                Size = new Size(450, 45),
                 Multiline = true,
                 ScrollBars = ScrollBars.Vertical,
                 ReadOnly = true,
-                BackColor = Color.FromArgb(248, 249, 250),
-                ForeColor = Color.FromArgb(33, 37, 41),
+                BackColor = WinColor.FromArgb(248, 249, 250),
+                ForeColor = WinColor.FromArgb(33, 37, 41),
                 BorderStyle = BorderStyle.FixedSingle,
                 Text = "🚀 GridPos Print Service iniciado\n📋 Esperando configuración...\n"
             };
@@ -356,18 +359,18 @@ namespace GridPosPrintService
             var clearLogBtn = new Button
             {
                 Name = "clearLogBtn",
-                Text = "🗑️ Limpiar Log",
+                Text = "🗑️ Limpiar",
                 Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                Location = new Point(460, 150),
-                Size = new Size(90, 25),
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
+                Location = new Point(470, 25),
+                Size = new Size(80, 45),
+                BackColor = WinColor.FromArgb(108, 117, 125),
+                ForeColor = WinColor.White,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             clearLogBtn.FlatAppearance.BorderSize = 0;
-            clearLogBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
-            clearLogBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(73, 80, 87);
+            clearLogBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(90, 98, 104);
+            clearLogBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(73, 80, 87);
             clearLogBtn.Click += (s, e) => {
                 var logBox = this.Controls.Find("logTextBox", true)[0] as TextBox;
                 logBox.Text = "🚀 Log limpiado\n";
@@ -393,7 +396,7 @@ namespace GridPosPrintService
             }
             catch (Exception ex)
             {
-                UpdateStatus($"❌ Error cargando configuración: {ex.Message}", Color.Red);
+                UpdateStatus($"❌ Error cargando configuración: {ex.Message}", WinColor.Red);
             }
         }
 
@@ -418,7 +421,7 @@ namespace GridPosPrintService
                 {
                     var startBtn = this.Controls.Find("startBtn", true)[0] as Button;
                     startBtn.Enabled = true;
-                    UpdateStatus("✅ Configuración cargada - Listo para iniciar", Color.Green);
+                    UpdateStatus("✅ Configuración cargada - Listo para iniciar", WinColor.Green);
                 }
             }
             catch { }
@@ -479,7 +482,7 @@ namespace GridPosPrintService
                 startBtn.Enabled = true;
 
                 var autoStartMsg = autoStartCheck.Checked ? " - Auto-inicio activado" : "";
-                UpdateStatus($"✅ Configuración guardada - API: {(apiType == "api" ? "Producción" : "Demo")} - Intervalo: {intervalSeconds}s{autoStartMsg}", Color.Green);
+                UpdateStatus($"✅ Configuración guardada - API: {(apiType == "api" ? "Producción" : "Demo")} - Intervalo: {intervalSeconds}s{autoStartMsg}", WinColor.Green);
                 AddLog($"💾 Configuración guardada: API={apiType}, Client={clientSlug}, Intervalo={intervalSeconds}s");
                 MessageBox.Show("✅ Configuración guardada correctamente", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -508,7 +511,7 @@ namespace GridPosPrintService
             stopBtn.Enabled = true;
 
             var intervalSeconds = monitorInterval / 1000;
-            UpdateStatus($"🚀 Servicio iniciado - Monitoreando cada {intervalSeconds} segundos", Color.Green);
+            UpdateStatus($"🚀 Servicio iniciado - Monitoreando cada {intervalSeconds} segundos", WinColor.Green);
             AddLog($"🚀 Servicio iniciado: URL={apiBaseUrl}/print-queue");
             AddLog($"⏱️ Intervalo de monitoreo: {intervalSeconds} segundos");
             AddLog($"🔑 Headers: Authorization=***, X-Client-Slug={clientSlug}");
@@ -525,8 +528,8 @@ namespace GridPosPrintService
             startBtn.Enabled = true;
             stopBtn.Enabled = false;
 
-            UpdateStatus("⏸️ Servicio detenido", Color.Red);
-            UpdateConnection("🔗 Desconectado", Color.Gray);
+            UpdateStatus("⏸️ Servicio detenido", WinColor.Red);
+            UpdateConnection("🔗 Desconectado", WinColor.Gray);
             AddLog("⏸️ Servicio detenido por usuario");
         }
 
@@ -551,7 +554,7 @@ namespace GridPosPrintService
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    UpdateConnection($"🔗 Conectado - {DateTime.Now:HH:mm:ss}", Color.Green);
+                    UpdateConnection($"🔗 Conectado - {DateTime.Now:HH:mm:ss}", WinColor.Green);
 
                     if (!string.IsNullOrWhiteSpace(content) && content != "[]" && content != "{}")
                     {
@@ -563,7 +566,7 @@ namespace GridPosPrintService
 
                             if (printJobs != null && printJobs.Length > 0)
                             {
-                                UpdateStatus($"📄 {printJobs.Length} trabajos encontrados", Color.Blue);
+                                UpdateStatus($"📄 {printJobs.Length} trabajos encontrados", WinColor.Blue);
                                 AddLog($"🔄 Procesando {printJobs.Length} trabajos de impresión");
 
                                 foreach (var job in printJobs)
@@ -579,25 +582,25 @@ namespace GridPosPrintService
                     }
                     else
                     {
-                        UpdateStatus($"✅ Monitoreando - Sin trabajos", Color.Green);
+                        UpdateStatus($"✅ Monitoreando - Sin trabajos", WinColor.Green);
                     }
                 }
                 else
                 {
                     var errorMsg = $"⚠️ Error API: {response.StatusCode}";
-                    UpdateConnection(errorMsg, Color.Orange);
+                    UpdateConnection(errorMsg, WinColor.Orange);
                     AddLog(errorMsg);
                 }
             }
             catch (Exception ex)
             {
                 var errorMsg = $"❌ Sin conexión: {ex.Message}";
-                UpdateConnection(errorMsg, Color.Red);
+                UpdateConnection(errorMsg, WinColor.Red);
                 AddLog(errorMsg);
             }
         }
 
-        private void UpdateStatus(string message, Color color)
+        private void UpdateStatus(string message, WinColor color)
         {
             if (this.InvokeRequired)
             {
@@ -610,7 +613,7 @@ namespace GridPosPrintService
             statusLabel.ForeColor = color;
         }
 
-        private void UpdateConnection(string message, Color color)
+        private void UpdateConnection(string message, WinColor color)
         {
             if (this.InvokeRequired)
             {
