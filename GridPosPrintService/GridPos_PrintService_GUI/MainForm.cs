@@ -1157,7 +1157,7 @@ namespace GridPosPrintService
                 printer.Write(
                     ByteSplicer.Combine(
                         e.CenterAlign(),
-                        e.PrintImage(imageBytes),
+                        e.PrintImage(imageBytes, true, true, 0, 0),
                         e.PrintLine(""),
                         e.FullCutAfterFeed(3)
                     )
