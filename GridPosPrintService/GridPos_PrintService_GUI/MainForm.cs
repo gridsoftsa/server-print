@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Linq;
 using ESCPOS_NET.Emitters;
 using ESCPOS_NET;
+using ESCPOS_NET.Utilities;
 using WinColor = System.Drawing.Color;
 using System.Drawing;
 
@@ -46,14 +47,14 @@ namespace GridPosPrintService
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.BackColor = WinWinColor.White;
+            this.BackColor = WinColor.White;
 
             // Logo/Title
             var titleLabel = new Label
             {
                 Text = "🚀 GRIDPOS PRINT SERVICE",
                 Font = new Font("Segoe UI", 18, FontStyle.Bold),
-                ForeColor = WinWinColor.DarkBlue,
+                ForeColor = WinColor.DarkBlue,
                 Location = new Point(50, 20),
                 Size = new Size(500, 40),
                 TextAlign = ContentAlignment.MiddleCenter
@@ -659,7 +660,7 @@ namespace GridPosPrintService
                 if (enable)
                 {
                     // Agregar al inicio de Windows
-                    var exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                    var exePath = System.AppContext.BaseDirectory + "GridPosPrintService.exe";
                     Registry.SetValue(startupKey, appName, $"\"{exePath}\"");
                 }
                 else
@@ -746,7 +747,7 @@ namespace GridPosPrintService
                 var printer = new SerialPrinter(portName: printerName, baudRate: 9600);
                 var e = new EPSON();
 
-                printer.Write(e.OpenCashDrawerPin2());
+                printer.Write(e.PulsePin2());
                 AddLog($"✅ Caja abierta exitosamente en: {printerName}");
             }
             catch (Exception ex)
@@ -910,14 +911,14 @@ namespace GridPosPrintService
 
                 // Fecha de la orden (IGUAL AL PHP)
                 var orderDate = "";
-                if (orderInfo != null && orderInfo.TryGetProperty("date", out var dateElement))
+                if (orderInfo.ValueKind != JsonValueKind.Undefined && orderInfo.TryGetProperty("date", out var dateElement))
                     orderDate = dateElement.GetString() ?? "";
 
                 if (!string.IsNullOrEmpty(orderDate))
                     printer.Write(e.PrintLine(orderDate));
 
                 // Teléfono de la empresa si existe (IGUAL AL PHP)
-                if (orderInfo != null && orderInfo.TryGetProperty("phone", out var phoneElement))
+                if (orderInfo.ValueKind != JsonValueKind.Undefined && orderInfo.TryGetProperty("phone", out var phoneElement))
                 {
                     var phone = phoneElement.GetString();
                     if (!string.IsNullOrEmpty(phone))
@@ -925,7 +926,7 @@ namespace GridPosPrintService
                 }
 
                 // Dirección de envío si existe (IGUAL AL PHP)
-                if (orderInfo != null && orderInfo.TryGetProperty("shipping_address", out var addressElement))
+                if (orderInfo.ValueKind != JsonValueKind.Undefined && orderInfo.TryGetProperty("shipping_address", out var addressElement))
                 {
                     var address = addressElement.GetString();
                     if (!string.IsNullOrEmpty(address))
@@ -1053,7 +1054,7 @@ namespace GridPosPrintService
 
                 // NOTA GENERAL si existe (IGUAL AL PHP)
                 var generalNote = "";
-                if (orderInfo != null)
+                if (orderInfo.ValueKind != JsonValueKind.Undefined)
                 {
                     if (orderInfo.TryGetProperty("note", out var noteElement))
                         generalNote = noteElement.GetString() ?? "";
@@ -1087,7 +1088,7 @@ namespace GridPosPrintService
 
                 // Timestamp de impresión
                 var datePrint = "";
-                if (orderInfo != null && orderInfo.TryGetProperty("date_print", out var datePrintElement))
+                if (orderInfo.ValueKind != JsonValueKind.Undefined && orderInfo.TryGetProperty("date_print", out var datePrintElement))
                     datePrint = datePrintElement.GetString() ?? "";
 
                 if (!string.IsNullOrEmpty(datePrint))
@@ -1095,7 +1096,7 @@ namespace GridPosPrintService
 
                 // ID de orden más visible (IGUAL AL PHP)
                 var orderIdDisplay = "";
-                if (orderInfo != null)
+                if (orderInfo.ValueKind != JsonValueKind.Undefined)
                 {
                     if (orderInfo.TryGetProperty("shipping_address", out var shippingElement) &&
                         !string.IsNullOrEmpty(shippingElement.GetString()) &&
@@ -1126,7 +1127,7 @@ namespace GridPosPrintService
                 // Abrir caja si se requiere (IGUAL AL PHP)
                 if (job.TryGetProperty("open_cash", out var openCashElement) && openCashElement.GetBoolean())
                 {
-                    printer.Write(e.OpenCashDrawerPin2());
+                    printer.Write(e.PulsePin2());
                     AddLog("💰 Caja abierta como parte del proceso de impresión ESC/POS");
                 }
 
@@ -1151,12 +1152,12 @@ namespace GridPosPrintService
                 await File.WriteAllBytesAsync(tempPath, imageData);
 
                 // Imprimir imagen usando ESC/POS-.NET
-                var img = new FileInfo(tempPath);
+                var imageBytes = await File.ReadAllBytesAsync(tempPath);
 
                 printer.Write(
                     ByteSplicer.Combine(
                         e.CenterAlign(),
-                        e.PrintImage(img, true),
+                        e.PrintImage(imageBytes),
                         e.PrintLine(""),
                         e.FullCutAfterFeed(3)
                     )

@@ -2,7 +2,7 @@
 chcp 65001 >nul
 echo ========================================
 echo    GRIDPOS PRINT SERVICE - UNIFICADO FINAL
-echo      🎉 Versión completa y definitiva
+echo      🎉 v1.1 - Color Conflict FIXED ✅
 echo ========================================
 echo.
 
@@ -16,6 +16,9 @@ echo ✅ Interfaz Bootstrap moderna con efectos
 echo ✅ Validación completa de todos los campos
 echo ✅ URL correcta: /print-queue
 echo ✅ Sin errores "Unauthorized"
+echo ✅ ERROR CORREGIDO: Conflicto 'Color' resuelto (v1.1)
+echo ✅ Impresión física ESC/POS funcionando
+echo ✅ WordWrap optimizado implementado
 echo.
 
 echo 🎨 INTERFAZ MODERNA:
