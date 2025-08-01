@@ -747,7 +747,7 @@ namespace GridPosPrintService
                 var printer = new SerialPrinter(portName: printerName, baudRate: 9600);
                 var e = new EPSON();
 
-                printer.Write(e.PulsePin2());
+                printer.Write(e.OpenCashDrawer());
                 AddLog($"✅ Caja abierta exitosamente en: {printerName}");
             }
             catch (Exception ex)
@@ -1127,7 +1127,7 @@ namespace GridPosPrintService
                 // Abrir caja si se requiere (IGUAL AL PHP)
                 if (job.TryGetProperty("open_cash", out var openCashElement) && openCashElement.GetBoolean())
                 {
-                    printer.Write(e.PulsePin2());
+                    printer.Write(e.OpenCashDrawer());
                     AddLog("💰 Caja abierta como parte del proceso de impresión ESC/POS");
                 }
 
