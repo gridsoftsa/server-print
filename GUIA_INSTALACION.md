@@ -22,11 +22,12 @@
 
 ## 📦 **Archivos que necesitas:**
 
-### **Solo estos 3 archivos:**
+### **Solo estos 4 archivos:**
 
-1. **`GridPosPrinter.exe`** - La aplicación principal
-2. **`GridPosPrinter.exe.config`** - Configuración
-3. **`install.bat`** - Instalador automático
+1. **`GridPosPrinter.ps1`** - Aplicación principal (PowerShell)
+2. **`GridPosPrinter.bat`** - Versión alternativa (Batch)
+3. **`install_powershell.bat`** - Instalador automático
+4. **`GUIA_INSTALACION.md`** - Esta guía
 
 ---
 
@@ -41,42 +42,30 @@ mkdir C:\GridPos
 ### **2. Copiar archivos:**
 
 ```bash
-# Copiar estos 3 archivos a C:\GridPos\
-copy GridPosPrinter.exe C:\GridPos\
-copy GridPosPrinter.exe.config C:\GridPos\
-copy install.bat C:\GridPos\
+# Copiar estos 4 archivos a C:\GridPos\
+copy GridPosPrinter.ps1 C:\GridPos\
+copy GridPosPrinter.bat C:\GridPos\
+copy install_powershell.bat C:\GridPos\
 ```
 
 ---
 
 ## ⚙️ **Paso 2: Configurar**
 
-### **Editar `GridPosPrinter.exe.config`:**
+### **Editar `GridPosPrinter.ps1`:**
 
-```xml
-<?xml version="1.0" encoding="utf-8" ?>
-<configuration>
-  <appSettings>
-    <!-- URL de tu API (cambiar por tu URL real) -->
-    <add key="ApiUrl" value="https://api.gridpos.co/print-queue" />
-
-    <!-- Tu identificador de cliente (cambiar por tu slug) -->
-    <add key="ClientSlug" value="tu-client-slug" />
-
-    <!-- Token de autenticación (ya está configurado) -->
-    <add key="AuthToken" value="f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3" />
-
-    <!-- Configuración de impresoras (opcional) -->
-    <add key="DefaultPrinter" value="" />
-    <add key="CashDrawerPrinter" value="" />
-  </appSettings>
-</configuration>
+```powershell
+# Cambiar estas líneas en GridPosPrinter.ps1:
+$ApiUrl = "https://api.gridpos.co/print-queue"  # Tu URL
+$ClientSlug = "tu-client-slug"                  # Tu slug
+$AuthToken = "f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3"
+$Interval = 200                                 # Velocidad en ms
 ```
 
 **Cambiar solo estas 2 líneas:**
 
--   `ApiUrl`: Tu URL del servidor
--   `ClientSlug`: Tu identificador de cliente
+-   `$ApiUrl`: Tu URL del servidor
+-   `$ClientSlug`: Tu identificador de cliente
 
 ---
 
@@ -89,17 +78,17 @@ copy install.bat C:\GridPos\
 cd C:\GridPos
 
 # 2. Ejecutar como administrador
-install.bat
+install_powershell.bat
 ```
 
 ### **Opción B: Instalación manual**
 
 ```bash
 # 1. Crear tarea programada para inicio automático
-schtasks /create /tn "GridPosPrinterService" /tr "C:\GridPos\GridPosPrinter.exe" /sc onstart /ru "SYSTEM" /f
+powershell -Command "& { $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -File \"C:\GridPos\GridPosPrinter.ps1\"'; $trigger = New-ScheduledTaskTrigger -AtStartup; Register-ScheduledTask -TaskName 'GridPosPrinterService' -Action $action -Trigger $trigger -RunLevel Highest -Force }"
 
 # 2. Crear acceso directo en escritorio
-powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\GridPos Printer.lnk'); $Shortcut.TargetPath = 'C:\GridPos\GridPosPrinter.exe'; $Shortcut.Save()"
+powershell -Command "& { $WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\GridPos Printer.lnk'); $Shortcut.TargetPath = 'C:\GridPos\start_service.bat'; $Shortcut.WorkingDirectory = 'C:\GridPos'; $Shortcut.Save() }"
 ```
 
 ---
@@ -109,7 +98,8 @@ powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut 
 ### **1. Iniciar:**
 
 -   **Doble clic** en "GridPos Printer" del escritorio
--   **O** ejecutar: `C:\GridPos\GridPosPrinter.exe`
+-   **O** ejecutar: `C:\GridPos\start_service.bat`
+-   **O** ejecutar directamente: `powershell -ExecutionPolicy Bypass -File "C:\GridPos\GridPosPrinter.ps1"`
 
 ### **2. Configurar (opcional):**
 
