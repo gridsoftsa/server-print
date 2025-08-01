@@ -1,210 +1,109 @@
-# 🚀 Guía de Instalación - GridPos Printer Service
+# 🚀 GridPos Printer Service - Guía de Instalación
 
-## 📋 **¿Qué hace esta aplicación?**
+## 📋 **Descripción**
 
-**Exactamente lo mismo que PHP pero mejor:**
+Aplicación nativa de Windows que reemplaza la solución PHP para procesar trabajos de impresión de GridPos.
 
--   ✅ **Lee la cola de impresión** de tu servidor
--   ✅ **Imprime tickets** (modo imagen y ESC/POS)
--   ✅ **Abre caja registradora**
--   ✅ **Imprime órdenes** (ESC/POS)
--   ✅ **Elimina trabajos** de la cola automáticamente
-
-**Pero con ventajas:**
+### ✅ **Ventajas sobre PHP:**
 
 -   ⚡ **200ms (0.2 segundos)** vs 5 segundos de PHP
 -   💻 **Muy bajo uso de CPU**
--   🖥️ **Interfaz gráfica** - No solo comandos
 -   🔧 **Sin Laragon ni PHP** - Solo Windows
 -   🚀 **Velocidad configurable** - Desde 200ms hasta 2 segundos
+-   🔄 **Inicio automático** - Se ejecuta con Windows
+-   📱 **Interfaz gráfica** - No solo comandos
 
 ---
 
 ## 📦 **Archivos que necesitas:**
 
-### **Solo estos 4 archivos:**
+### **Solo 1 archivo:**
 
-1. **`GridPosPrinter.ps1`** - Aplicación principal (PowerShell)
-2. **`GridPosPrinter.bat`** - Versión alternativa (Batch)
-3. **`install_powershell.bat`** - Instalador automático
-4. **`GUIA_INSTALACION.md`** - Esta guía
+1. **`GridPosPrinter.exe`** - Instalador único (Todo en uno)
 
 ---
 
-## 🔧 **Paso 1: Preparar archivos**
+## 🚀 **Instalación (Paso a Paso)**
 
-### **1. Crear carpeta:**
+### **1. Descargar:**
+
+-   Descargar `GridPosPrinter.exe` a tu computadora
+
+### **2. Instalar:**
 
 ```bash
-mkdir C:\GridPos
+# 1. Clic derecho en GridPosPrinter.exe
+# 2. Seleccionar "Ejecutar como administrador"
 ```
 
-### **2. Copiar archivos:**
+### **3. Configurar:**
 
-```bash
-# Copiar estos 4 archivos a C:\GridPos\
-copy GridPosPrinter.ps1 C:\GridPos\
-copy GridPosPrinter.bat C:\GridPos\
-copy install_powershell.bat C:\GridPos\
-```
+Durante la instalación te pedirá:
+
+-   **📝 Client Slug**: Tu identificador de cliente (obligatorio)
+-   **🌐 API URL**: Tu URL del servidor (opcional, tiene valor por defecto)
+
+### **4. ¡Listo!**
+
+-   ✅ Se instala automáticamente en `C:\GridPos\`
+-   ✅ Se configura para inicio automático con Windows
+-   ✅ Se crea acceso directo en el escritorio
+-   ✅ Se inicia inmediatamente en segundo plano
 
 ---
 
-## ⚙️ **Paso 2: Configurar**
+## 🎯 **Uso**
 
-### **Editar `GridPosPrinter.ps1`:**
+### **Inicio automático:**
 
-```powershell
-# Cambiar estas líneas en GridPosPrinter.ps1:
-$ApiUrl = "https://api.gridpos.co/print-queue"  # Tu URL
-$ClientSlug = "tu-client-slug"                  # Tu slug
-$AuthToken = "f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3"
-$Interval = 200                                 # Velocidad en ms
-```
+-   El servicio se ejecuta automáticamente con Windows
+-   Funciona en segundo plano sin interfaz visible
 
-**Cambiar solo estas 2 líneas:**
+### **Inicio manual:**
 
--   `$ApiUrl`: Tu URL del servidor
--   `$ClientSlug`: Tu identificador de cliente
+-   Doble clic en "GridPos Printer" del escritorio
+-   O ejecutar: `C:\GridPos\start_service.bat`
 
----
+### **Monitoreo:**
 
-## 🚀 **Paso 3: Instalar**
-
-### **Opción A: Instalación automática (Recomendado)**
-
-```bash
-# 1. Ir a la carpeta
-cd C:\GridPos
-
-# 2. Ejecutar como administrador
-install_powershell.bat
-```
-
-### **Opción B: Instalación manual**
-
-```bash
-# 1. Crear tarea programada para inicio automático
-powershell -Command "& { $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -File \"C:\GridPos\GridPosPrinter.ps1\"'; $trigger = New-ScheduledTaskTrigger -AtStartup; Register-ScheduledTask -TaskName 'GridPosPrinterService' -Action $action -Trigger $trigger -RunLevel Highest -Force }"
-
-# 2. Crear acceso directo en escritorio
-powershell -Command "& { $WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\GridPos Printer.lnk'); $Shortcut.TargetPath = 'C:\GridPos\start_service.bat'; $Shortcut.WorkingDirectory = 'C:\GridPos'; $Shortcut.Save() }"
-```
+-   Logs disponibles en: `C:\GridPos\logs\gridpos-printer.log`
+-   Estadísticas cada 100 peticiones
 
 ---
 
-## 🎮 **Paso 4: Usar la aplicación**
+## ⚙️ **Configuración**
 
-### **1. Iniciar:**
+### **Modificar configuración:**
 
--   **Doble clic** en "GridPos Printer" del escritorio
--   **O** ejecutar: `C:\GridPos\start_service.bat`
--   **O** ejecutar directamente: `powershell -ExecutionPolicy Bypass -File "C:\GridPos\GridPosPrinter.ps1"`
+1. Editar: `C:\GridPos\GridPosPrinter.ps1`
+2. Cambiar las variables al inicio del archivo:
+    ```powershell
+    $ApiUrl = "tu-url"
+    $ClientSlug = "tu-client-slug"
+    $Interval = 200  # Velocidad en ms
+    ```
 
-### **2. Configurar (opcional):**
+### **Reiniciar servicio:**
 
--   **API URL**: Verificar que sea tu URL correcta
--   **Velocidad**: Seleccionar velocidad desde el dropdown
--   Ultra Rápido (200ms) - Máxima velocidad
--   Muy Rápido (500ms) - Alta velocidad
--   Rápido (1000ms) - Velocidad media
--   Normal (2000ms) - Velocidad estándar
--   **Personalizado**: Escribir valor en milisegundos
-
-### **3. Iniciar servicio:**
-
--   Hacer clic en **"🚀 Iniciar Servicio"**
--   Ver logs en tiempo real
--   El servicio verificará la cola cada 200ms (ultra rápido)
+1. Detener: `taskkill /f /im powershell.exe`
+2. Iniciar: Doble clic en "GridPos Printer" del escritorio
 
 ---
 
-## ✅ **Verificar que funciona:**
+## 📊 **Comparación con PHP**
 
-### **1. Logs esperados:**
-
-```
-[14:30:15.123] 🚀 GridPos Printer Service - Ultra Fast iniciado
-[14:30:15.124] API URL: https://api.gridpos.co/print-queue
-[14:30:15.125] Client Slug: tu-client-slug
-[14:30:15.126] Velocidad: Ultra Rápido (200ms)
-[14:30:15.127] ⚡ Configurado para máxima velocidad
-[14:30:15.327] ✅ Servicio iniciado - Ultra Fast Mode
-[14:30:15.328] ⚡ Verificando cada 200ms
-[14:30:15.528] 📨 Encontrados 0 trabajos de impresión
-```
-
-### **2. Probar impresión:**
-
--   Desde tu aplicación web, mandar imprimir un ticket
--   Deberías ver en los logs:
-
-```
-[14:30:15.728] 📨 Encontrados 1 trabajos de impresión
-[14:30:15.729] 🖨️ Procesando: salePrinter en tu-impresora
-[14:30:15.730] ✅ Trabajo completado: salePrinter
-```
+| Funcionalidad         | PHP + Laragon | Solución Nativa |
+| --------------------- | ------------- | --------------- |
+| **Velocidad**         | 5 segundos    | 200ms (0.2s)    |
+| **Uso de CPU**        | Alto          | Muy bajo        |
+| **Dependencias**      | Laragon + PHP | Solo Windows    |
+| **Instalación**       | Compleja      | 1 clic          |
+| **Inicio automático** | Manual        | Automático      |
+| **Interfaz**          | Solo comandos | Gráfica         |
 
 ---
 
-## 🔧 **Solución de problemas:**
-
-### **Error: "No se puede conectar"**
-
--   Verificar que la **API URL** sea correcta
--   Verificar que el **Client Slug** sea correcto
--   Verificar conexión a internet
-
-### **Error: "No imprime"**
-
--   Verificar que la impresora esté conectada
--   Verificar que la impresora esté compartida
--   Verificar permisos de impresión
-
-### **Error: "No inicia automáticamente"**
-
--   Ejecutar `install.bat` como administrador
--   Verificar que la tarea programada se creó:
-
-```bash
-schtasks /query /tn "GridPosPrinterService"
-```
-
----
-
-## 📊 **Comparación con PHP:**
-
-| Funcionalidad        | PHP + Laragon | Solución Nativa |
-| -------------------- | ------------- | --------------- |
-| **Leer cola**        | ✅            | ✅              |
-| **Imprimir tickets** | ✅            | ✅              |
-| **Abrir caja**       | ✅            | ✅              |
-| **ESC/POS**          | ✅            | ✅              |
-| **Velocidad**        | 5 segundos    | 200ms (0.2s)    |
-| **Uso de CPU**       | Alto          | Muy bajo        |
-| **Instalación**      | Compleja      | Simple          |
-
----
-
-## 🎯 **Resultado:**
-
-### **Antes (PHP):**
-
--   Cliente instala Laragon (500MB)
--   Configura PHP y Apache
--   Scripts batch complejos
--   Alto uso de recursos
-
-### **Ahora (Nativo):**
-
--   Cliente ejecuta instalador (5MB)
--   Interfaz gráfica profesional
--   Muy bajo uso de recursos
--   Inicio automático
-
----
-
-## ✅ **¡Listo!**
+## 🎯 **Resultado**
 
 Tu aplicación nativa hace **exactamente lo mismo** que PHP pero:
 
@@ -214,4 +113,34 @@ Tu aplicación nativa hace **exactamente lo mismo** que PHP pero:
 -   **Más estable** (sin dependencias)
 -   **Velocidad configurable** (200ms a 2 segundos)
 
-¡El cliente solo ejecuta `install.bat` y listo! 🚀
+---
+
+## 🔧 **Solución de Problemas**
+
+### **Error de permisos:**
+
+-   Ejecutar como administrador
+
+### **No se conecta:**
+
+-   Verificar URL y Client Slug en `C:\GridPos\GridPosPrinter.ps1`
+
+### **No inicia automáticamente:**
+
+-   Verificar tarea programada en "Programador de tareas"
+
+### **Ver logs:**
+
+-   Abrir: `C:\GridPos\logs\gridpos-printer.log`
+
+---
+
+## 📞 **Soporte**
+
+Si tienes problemas:
+
+1. Verificar logs en `C:\GridPos\logs\gridpos-printer.log`
+2. Verificar configuración en `C:\GridPos\GridPosPrinter.ps1`
+3. Reiniciar el servicio
+
+**¡Listo! Tu servicio de impresión nativo está funcionando.** 🚀

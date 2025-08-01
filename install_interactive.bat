@@ -1,19 +1,21 @@
 @echo off
-title GridPos Printer Service - Instalador Único
+title GridPos Printer Service - Instalador Interactivo
 color 0A
 
 echo ========================================
-echo    GridPos Printer Service
-echo    Instalador Único - Todo en Uno
+echo    GridPos Printer Service Installer
+echo    (Version PowerShell - Interactivo)
 echo ========================================
 echo.
 
 REM Verificar si se ejecuta como administrador
 net session >nul 2>&1
 if %errorLevel% neq 0 (
-    echo ❌ ERROR: Debes ejecutar como Administrador
+    echo ❌ ERROR: Este instalador debe ejecutarse como Administrador
     echo.
-    echo Clic derecho → "Ejecutar como administrador"
+    echo Para ejecutar como administrador:
+    echo 1. Clic derecho en este archivo
+    echo 2. Seleccionar "Ejecutar como administrador"
     echo.
     pause
     exit /b 1
@@ -22,7 +24,7 @@ if %errorLevel% neq 0 (
 echo ✅ Ejecutando como administrador
 echo.
 
-REM Solicitar configuración
+REM Solicitar configuración al usuario
 echo ⚙️ CONFIGURACIÓN REQUERIDA:
 echo.
 
@@ -34,7 +36,7 @@ if "%CLIENT_SLUG%"=="" (
 )
 
 :ask_api_url
-set /p API_URL="🌐 Ingresa tu API URL (Enter para default): "
+set /p API_URL="🌐 Ingresa tu API URL (Enter para usar default): "
 if "%API_URL%"=="" (
     set API_URL=https://api.gridpos.co/print-queue
     echo ✅ Usando URL por defecto: %API_URL%
@@ -49,20 +51,38 @@ echo.
 REM Crear directorio de instalación
 set "INSTALL_DIR=C:\GridPos"
 if not exist "%INSTALL_DIR%" (
-    echo 📁 Creando directorio...
+    echo 📁 Creando directorio de instalación...
     mkdir "%INSTALL_DIR%"
 )
 
-REM Crear directorio de logs
-if not exist "%INSTALL_DIR%\logs" (
-    mkdir "%INSTALL_DIR%\logs"
-)
+REM Copiar archivos
+echo 📋 Copiando archivos...
+copy "GridPosPrinter.bat" "%INSTALL_DIR%\" >nul 2>&1
 
-REM Crear el archivo PowerShell principal
-echo ⚙️ Creando aplicación principal...
+REM Crear script de inicio
+echo 🔧 Creando script de inicio...
 (
-echo # GridPos Printer Service - Aplicación Principal
-echo # Generado automáticamente - %date% %time%
+echo @echo off
+echo title GridPos Printer Service
+echo color 0A
+echo echo ========================================
+echo echo    GridPos Printer Service
+echo echo ========================================
+echo echo.
+echo echo Iniciando servicio...
+echo echo.
+echo powershell -ExecutionPolicy Bypass -File "%%~dp0GridPosPrinter_Simple.ps1"
+echo echo.
+echo echo Servicio detenido. Presiona cualquier tecla para cerrar...
+echo pause
+) > "%INSTALL_DIR%\start_service.bat"
+
+REM Crear archivo de configuración personalizado
+echo ⚙️ Generando archivo de configuración personalizado...
+(
+echo # GridPos Printer Service - Configuración personalizada
+echo # Generado automáticamente por el instalador
+echo # Fecha: %date% %time%
 echo.
 echo # Configuración
 echo $ApiUrl = "%API_URL%"
@@ -91,7 +111,6 @@ echo     param([string]$Message^)
 echo     $timestamp = Get-Date -Format "HH:mm:ss.fff"
 echo     $logMessage = "[$timestamp] $Message"
 echo     Write-Host $logMessage -ForegroundColor Green
-echo     Add-Content -Path "C:\GridPos\logs\gridpos-printer.log" -Value $logMessage -ErrorAction SilentlyContinue
 echo }
 echo.
 echo # Función para procesar trabajo
@@ -177,7 +196,7 @@ echo Write-Log "API URL: $ApiUrl"
 echo Write-Log "Client Slug: $ClientSlug"
 echo Write-Log "Intervalo: ${Interval}ms"
 echo Write-Log "⚡ Configurado para máxima velocidad"
-echo Write-Log "🔄 Ejecutándose en segundo plano"
+echo Write-Log "Presiona Ctrl+C para detener"
 echo.
 echo # Bucle principal
 echo try {
@@ -196,52 +215,44 @@ echo } finally {
 echo     Write-Log "Deteniendo servicio..."
 echo     Show-Stats
 echo }
-) > "%INSTALL_DIR%\GridPosPrinter.ps1"
+) > "%INSTALL_DIR%\GridPosPrinter_Simple.ps1"
 
-REM Crear script de inicio
-echo 🔧 Creando script de inicio...
-(
-echo @echo off
-echo title GridPos Printer Service
-echo color 0A
-echo echo ========================================
-echo echo    GridPos Printer Service
-echo echo ========================================
-echo echo.
-echo echo Iniciando servicio en segundo plano...
-echo echo.
-powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "%%~dp0GridPosPrinter.ps1"
-) > "%INSTALL_DIR%\start_service.bat"
+REM Crear directorio de logs
+if not exist "%INSTALL_DIR%\logs" (
+    mkdir "%INSTALL_DIR%\logs"
+)
 
 REM Crear tarea programada para inicio automático
 echo 🔄 Configurando inicio automático...
-powershell -Command "& { $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -WindowStyle Hidden -File \"C:\GridPos\GridPosPrinter.ps1\"'; $trigger = New-ScheduledTaskTrigger -AtStartup; $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable; Register-ScheduledTask -TaskName 'GridPosPrinterService' -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -Force }" >nul 2>&1
+powershell -Command "& { $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-ExecutionPolicy Bypass -File \"C:\GridPos\GridPosPrinter_Simple.ps1\"'; $trigger = New-ScheduledTaskTrigger -AtStartup; Register-ScheduledTask -TaskName 'GridPosPrinterService' -Action $action -Trigger $trigger -RunLevel Highest -Force }" >nul 2>&1
 
 REM Crear acceso directo en escritorio
-echo 📱 Creando acceso directo...
+echo 📱 Creando acceso directo en escritorio...
 powershell -Command "& { $WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\GridPos Printer.lnk'); $Shortcut.TargetPath = 'C:\GridPos\start_service.bat'; $Shortcut.WorkingDirectory = 'C:\GridPos'; $Shortcut.Description = 'GridPos Printer Service'; $Shortcut.Save() }" >nul 2>&1
 
-REM Iniciar el servicio inmediatamente
-echo 🚀 Iniciando servicio...
-start /min powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "%INSTALL_DIR%\GridPosPrinter.ps1"
-
 echo.
 echo ========================================
-echo    ✅ INSTALACIÓN COMPLETADA
+echo    ✅ INSTALACIÓN COMPLETADA EXITOSAMENTE
 echo ========================================
 echo.
-echo 📁 Instalado en: %INSTALL_DIR%
-echo 🔄 Inicio automático: Configurado
-echo 📱 Acceso directo: Creado en escritorio
+echo 📁 Archivos instalados en: %INSTALL_DIR%
+echo 🔄 Servicio configurado para inicio automático
+echo 📱 Acceso directo creado en el escritorio
 echo.
-echo ✅ Configuración:
+echo ✅ Configuración automática:
 echo    📝 Client Slug: %CLIENT_SLUG%
 echo    🌐 API URL: %API_URL%
-echo    ⚡ Velocidad: 200ms
+echo    ⚡ Velocidad: 200ms (ultra rápido)
 echo.
-echo 🚀 El servicio ya está ejecutándose en segundo plano
-echo    y se iniciará automáticamente con Windows
+echo 🚀 Para iniciar el servicio:
+echo    1. Doble clic en "GridPos Printer" del escritorio
+echo    2. O ejecutar: C:\GridPos\start_service.bat
 echo.
-echo 📊 Logs disponibles en: C:\GridPos\logs\gridpos-printer.log
+echo ⚙️ Para modificar la configuración:
+echo    1. Editar: C:\GridPos\GridPosPrinter_Simple.ps1
+echo    2. Cambiar las variables al inicio del archivo
+echo.
+echo 📊 El servicio verificará la cola cada 200ms
+echo    (25x más rápido que la solución PHP anterior)
 echo.
 pause
