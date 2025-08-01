@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -8,13 +9,9 @@ using System.Threading;
 using System.Text;
 using System.IO;
 using System.Text.Json;
+using System.Linq;
 using ESCPOS_NET.Emitters;
 using ESCPOS_NET;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-
-// Alias para evitar conflictos de namespace
-using WinColor = System.Drawing.Color;
 
 namespace GridPosPrintService
 {
@@ -48,14 +45,14 @@ namespace GridPosPrintService
             this.StartPosition = FormStartPosition.CenterScreen;
             this.MaximizeBox = false;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.BackColor = WinColor.White;
+            this.BackColor = Color.White;
 
             // Logo/Title
             var titleLabel = new Label
             {
                 Text = "🚀 GRIDPOS PRINT SERVICE",
                 Font = new Font("Segoe UI", 18, FontStyle.Bold),
-                ForeColor = WinColor.DarkBlue,
+                ForeColor = Color.DarkBlue,
                 Location = new Point(50, 20),
                 Size = new Size(500, 40),
                 TextAlign = ContentAlignment.MiddleCenter
@@ -66,7 +63,7 @@ namespace GridPosPrintService
             {
                 Text = "Sistema Ultra Rápido de Impresión",
                 Font = new Font("Segoe UI", 10),
-                ForeColor = WinColor.Gray,
+                ForeColor = Color.Gray,
                 Location = new Point(50, 60),
                 Size = new Size(500, 25),
                 TextAlign = ContentAlignment.MiddleCenter
@@ -80,7 +77,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(20, 100),
                 Size = new Size(560, 200),
-                ForeColor = WinColor.DarkBlue
+                ForeColor = Color.DarkBlue
             };
             this.Controls.Add(configGroup);
 
@@ -102,7 +99,7 @@ namespace GridPosPrintService
                 Size = new Size(200, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = WinColor.White
+                BackColor = Color.White
             };
             apiCombo.Items.AddRange(new[] { "Producción (api.gridpos.co)", "Demo (api-demo.gridpos.co)" });
             apiCombo.SelectedIndex = 0;
@@ -126,7 +123,7 @@ namespace GridPosPrintService
                 Size = new Size(200, 25),
                 PlaceholderText = "Ej: mi-empresa",
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = WinColor.White
+                BackColor = Color.White
             };
             configGroup.Controls.Add(clientText);
 
@@ -149,7 +146,7 @@ namespace GridPosPrintService
                 PlaceholderText = "Token de autorización",
                 Text = "f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3",
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = WinColor.White
+                BackColor = Color.White
             };
             configGroup.Controls.Add(authText);
 
@@ -171,7 +168,7 @@ namespace GridPosPrintService
                 Size = new Size(60, 25),
                 Text = "2",
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = WinColor.White,
+                BackColor = Color.White,
                 TextAlign = HorizontalAlignment.Center
             };
             configGroup.Controls.Add(intervalText);
@@ -182,7 +179,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 8),
                 Location = new Point(220, 126),
                 Size = new Size(150, 20),
-                ForeColor = WinColor.Gray
+                ForeColor = Color.Gray
             };
             configGroup.Controls.Add(intervalHelpLabel);
 
@@ -194,7 +191,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 Location = new Point(20, 155),
                 Size = new Size(300, 20),
-                ForeColor = WinColor.FromArgb(40, 167, 69),
+                ForeColor = Color.FromArgb(40, 167, 69),
                 FlatStyle = FlatStyle.Flat
             };
             configGroup.Controls.Add(autoStartCheck);
@@ -207,14 +204,14 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 Location = new Point(370, 95),
                 Size = new Size(170, 35),
-                BackColor = WinColor.FromArgb(0, 123, 255),
-                ForeColor = WinColor.White,
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             saveConfigBtn.FlatAppearance.BorderSize = 0;
-            saveConfigBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(0, 86, 179);
-            saveConfigBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(0, 63, 135);
+            saveConfigBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 86, 179);
+            saveConfigBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(0, 63, 135);
             saveConfigBtn.Click += SaveConfig_Click;
             configGroup.Controls.Add(saveConfigBtn);
 
@@ -225,7 +222,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(20, 320),
                 Size = new Size(560, 120),
-                ForeColor = WinColor.DarkGreen
+                ForeColor = Color.DarkGreen
             };
             this.Controls.Add(statusGroup);
 
@@ -237,7 +234,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 Location = new Point(20, 30),
                 Size = new Size(400, 25),
-                ForeColor = WinColor.Red
+                ForeColor = Color.Red
             };
             statusGroup.Controls.Add(statusLabel);
 
@@ -249,7 +246,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9),
                 Location = new Point(20, 60),
                 Size = new Size(400, 20),
-                ForeColor = WinColor.Gray
+                ForeColor = Color.Gray
             };
             statusGroup.Controls.Add(connectionLabel);
 
@@ -261,15 +258,15 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(50, 460),
                 Size = new Size(180, 45),
-                BackColor = WinColor.FromArgb(40, 167, 69),
-                ForeColor = WinColor.White,
+                BackColor = Color.FromArgb(40, 167, 69),
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Enabled = false,
                 Cursor = Cursors.Hand
             };
             startBtn.FlatAppearance.BorderSize = 0;
-            startBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(34, 139, 58);
-            startBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(25, 105, 44);
+            startBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 139, 58);
+            startBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 105, 44);
             startBtn.Click += StartService_Click;
             this.Controls.Add(startBtn);
 
@@ -280,15 +277,15 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(250, 460),
                 Size = new Size(180, 45),
-                BackColor = WinColor.FromArgb(220, 53, 69),
-                ForeColor = WinColor.White,
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Enabled = false,
                 Cursor = Cursors.Hand
             };
             stopBtn.FlatAppearance.BorderSize = 0;
-            stopBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(200, 35, 51);
-            stopBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(176, 27, 41);
+            stopBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
+            stopBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(176, 27, 41);
             stopBtn.Click += StopService_Click;
             this.Controls.Add(stopBtn);
 
@@ -298,14 +295,14 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 Location = new Point(450, 460),
                 Size = new Size(100, 45),
-                BackColor = WinColor.FromArgb(255, 193, 7),
-                ForeColor = WinColor.FromArgb(33, 37, 41),
+                BackColor = Color.FromArgb(255, 193, 7),
+                ForeColor = Color.FromArgb(33, 37, 41),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             helpBtn.FlatAppearance.BorderSize = 0;
-            helpBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(255, 174, 0);
-            helpBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(217, 147, 0);
+            helpBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 174, 0);
+            helpBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(217, 147, 0);
             helpBtn.Click += (s, e) => MessageBox.Show(
                 "🚀 GRIDPOS PRINT SERVICE\n\n" +
                 "1. Configura tu API (Producción/Demo)\n" +
@@ -334,7 +331,7 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Location = new Point(20, 460),
                 Size = new Size(560, 100),
-                ForeColor = WinColor.FromArgb(51, 51, 51)
+                ForeColor = Color.FromArgb(51, 51, 51)
             };
             this.Controls.Add(logGroup);
 
@@ -348,8 +345,8 @@ namespace GridPosPrintService
                 Multiline = true,
                 ScrollBars = ScrollBars.Vertical,
                 ReadOnly = true,
-                BackColor = WinColor.FromArgb(248, 249, 250),
-                ForeColor = WinColor.FromArgb(33, 37, 41),
+                BackColor = Color.FromArgb(248, 249, 250),
+                ForeColor = Color.FromArgb(33, 37, 41),
                 BorderStyle = BorderStyle.FixedSingle,
                 Text = "🚀 GridPos Print Service iniciado\n📋 Esperando configuración...\n"
             };
@@ -363,14 +360,14 @@ namespace GridPosPrintService
                 Font = new Font("Segoe UI", 8, FontStyle.Bold),
                 Location = new Point(470, 25),
                 Size = new Size(80, 45),
-                BackColor = WinColor.FromArgb(108, 117, 125),
-                ForeColor = WinColor.White,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             clearLogBtn.FlatAppearance.BorderSize = 0;
-            clearLogBtn.FlatAppearance.MouseOverBackColor = WinColor.FromArgb(90, 98, 104);
-            clearLogBtn.FlatAppearance.MouseDownBackColor = WinColor.FromArgb(73, 80, 87);
+            clearLogBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
+            clearLogBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(73, 80, 87);
             clearLogBtn.Click += (s, e) => {
                 var logBox = this.Controls.Find("logTextBox", true)[0] as TextBox;
                 logBox.Text = "🚀 Log limpiado\n";
@@ -396,7 +393,7 @@ namespace GridPosPrintService
             }
             catch (Exception ex)
             {
-                UpdateStatus($"❌ Error cargando configuración: {ex.Message}", WinColor.Red);
+                UpdateStatus($"❌ Error cargando configuración: {ex.Message}", Color.Red);
             }
         }
 
@@ -421,7 +418,7 @@ namespace GridPosPrintService
                 {
                     var startBtn = this.Controls.Find("startBtn", true)[0] as Button;
                     startBtn.Enabled = true;
-                    UpdateStatus("✅ Configuración cargada - Listo para iniciar", WinColor.Green);
+                    UpdateStatus("✅ Configuración cargada - Listo para iniciar", Color.Green);
                 }
             }
             catch { }
@@ -482,7 +479,7 @@ namespace GridPosPrintService
                 startBtn.Enabled = true;
 
                 var autoStartMsg = autoStartCheck.Checked ? " - Auto-inicio activado" : "";
-                UpdateStatus($"✅ Configuración guardada - API: {(apiType == "api" ? "Producción" : "Demo")} - Intervalo: {intervalSeconds}s{autoStartMsg}", WinColor.Green);
+                UpdateStatus($"✅ Configuración guardada - API: {(apiType == "api" ? "Producción" : "Demo")} - Intervalo: {intervalSeconds}s{autoStartMsg}", Color.Green);
                 AddLog($"💾 Configuración guardada: API={apiType}, Client={clientSlug}, Intervalo={intervalSeconds}s");
                 MessageBox.Show("✅ Configuración guardada correctamente", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -511,7 +508,7 @@ namespace GridPosPrintService
             stopBtn.Enabled = true;
 
             var intervalSeconds = monitorInterval / 1000;
-            UpdateStatus($"🚀 Servicio iniciado - Monitoreando cada {intervalSeconds} segundos", WinColor.Green);
+            UpdateStatus($"🚀 Servicio iniciado - Monitoreando cada {intervalSeconds} segundos", Color.Green);
             AddLog($"🚀 Servicio iniciado: URL={apiBaseUrl}/print-queue");
             AddLog($"⏱️ Intervalo de monitoreo: {intervalSeconds} segundos");
             AddLog($"🔑 Headers: Authorization=***, X-Client-Slug={clientSlug}");
@@ -528,8 +525,8 @@ namespace GridPosPrintService
             startBtn.Enabled = true;
             stopBtn.Enabled = false;
 
-            UpdateStatus("⏸️ Servicio detenido", WinColor.Red);
-            UpdateConnection("🔗 Desconectado", WinColor.Gray);
+            UpdateStatus("⏸️ Servicio detenido", Color.Red);
+            UpdateConnection("🔗 Desconectado", Color.Gray);
             AddLog("⏸️ Servicio detenido por usuario");
         }
 
@@ -554,7 +551,7 @@ namespace GridPosPrintService
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    UpdateConnection($"🔗 Conectado - {DateTime.Now:HH:mm:ss}", WinColor.Green);
+                    UpdateConnection($"🔗 Conectado - {DateTime.Now:HH:mm:ss}", Color.Green);
 
                     if (!string.IsNullOrWhiteSpace(content) && content != "[]" && content != "{}")
                     {
@@ -566,7 +563,7 @@ namespace GridPosPrintService
 
                             if (printJobs != null && printJobs.Length > 0)
                             {
-                                UpdateStatus($"📄 {printJobs.Length} trabajos encontrados", WinColor.Blue);
+                                UpdateStatus($"📄 {printJobs.Length} trabajos encontrados", Color.Blue);
                                 AddLog($"🔄 Procesando {printJobs.Length} trabajos de impresión");
 
                                 foreach (var job in printJobs)
@@ -582,25 +579,25 @@ namespace GridPosPrintService
                     }
                     else
                     {
-                        UpdateStatus($"✅ Monitoreando - Sin trabajos", WinColor.Green);
+                        UpdateStatus($"✅ Monitoreando - Sin trabajos", Color.Green);
                     }
                 }
                 else
                 {
                     var errorMsg = $"⚠️ Error API: {response.StatusCode}";
-                    UpdateConnection(errorMsg, WinColor.Orange);
+                    UpdateConnection(errorMsg, Color.Orange);
                     AddLog(errorMsg);
                 }
             }
             catch (Exception ex)
             {
                 var errorMsg = $"❌ Sin conexión: {ex.Message}";
-                UpdateConnection(errorMsg, WinColor.Red);
+                UpdateConnection(errorMsg, Color.Red);
                 AddLog(errorMsg);
             }
         }
 
-        private void UpdateStatus(string message, WinColor color)
+        private void UpdateStatus(string message, Color color)
         {
             if (this.InvokeRequired)
             {
@@ -613,7 +610,7 @@ namespace GridPosPrintService
             statusLabel.ForeColor = color;
         }
 
-        private void UpdateConnection(string message, WinColor color)
+        private void UpdateConnection(string message, Color color)
         {
             if (this.InvokeRequired)
             {
@@ -744,8 +741,11 @@ namespace GridPosPrintService
                 var printerName = printerElement.GetString();
                 AddLog($"🔓 Abriendo caja en impresora: {printerName}");
 
-                // Aquí iría la lógica de apertura de caja usando ESC/POS
-                // Por ahora solo logueamos
+                // 🚀 IMPRESIÓN REAL: Abrir caja usando ESC/POS-.NET
+                var printer = new SerialPrinter(portName: printerName, baudRate: 9600);
+                var e = new EPSON();
+
+                printer.Write(e.OpenCashDrawerPin2());
                 AddLog($"✅ Caja abierta exitosamente en: {printerName}");
             }
             catch (Exception ex)
@@ -767,16 +767,20 @@ namespace GridPosPrintService
                 var printerName = printerElement.GetString();
                 AddLog($"🖨️ Imprimiendo orden en: {printerName}");
 
+                // 🚀 IMPRESIÓN REAL: usando ESC/POS-.NET
+                var printer = new SerialPrinter(portName: printerName, baudRate: 9600);
+                var e = new EPSON();
+
                 // Verificar si viene con data_json (nuevo) o image (tradicional)
                 if (job.TryGetProperty("data_json", out var dataJsonElement))
                 {
                     AddLog("🚀 Modo ESC/POS OPTIMIZADO - Usando datos JSON");
-                    // Aquí procesaríamos con ESC/POS directo como en el PHP
+                    await PrintOrderWithEscPos(printer, e, dataJsonElement, job);
                 }
                 else if (job.TryGetProperty("image", out var imageElement))
                 {
                     AddLog("🐌 Modo tradicional - Usando imagen base64");
-                    // Aquí procesaríamos la imagen como en el PHP
+                    await PrintOrderWithImage(printer, e, imageElement.GetString());
                 }
 
                 AddLog($"✅ Orden impresa exitosamente en: {printerName}");
@@ -841,6 +845,393 @@ namespace GridPosPrintService
             {
                 AddLog($"❌ Error eliminando trabajo {jobId}: {ex.Message}");
             }
+        }
+
+                private async Task PrintOrderWithEscPos(BasePrinter printer, ICommandEmitter e, JsonElement orderData, JsonElement job)
+        {
+            try
+            {
+                AddLog("📝 Generando ticket ESC/POS IGUAL AL PHP...");
+                var startTime = DateTime.Now;
+
+                // Extraer configuración del papel (igual que el PHP)
+                var paperWidth = 80; // Por defecto 80mm
+                if (orderData.TryGetProperty("print_settings", out var printSettings) &&
+                    printSettings.TryGetProperty("paper_width", out var paperWidthElement))
+                {
+                    paperWidth = paperWidthElement.GetInt32();
+                }
+
+                AddLog($"🚀 Ancho de papel: {paperWidth}");
+                var isSmallPaper = paperWidth == 58;
+
+                // === ENCABEZADO === (IGUAL AL PHP)
+                printer.Write(e.Initialize());
+                printer.Write(e.CenterAlign());
+
+                // Cliente si existe - Ajustado por tamaño de papel (IGUAL AL PHP)
+                var clientName = "";
+                if (orderData.TryGetProperty("order_data", out var orderInfo))
+                {
+                    if (orderInfo.TryGetProperty("client_name", out var clientElement))
+                        clientName = clientElement.GetString() ?? "";
+                    else if (orderData.TryGetProperty("client_info", out var clientInfo) &&
+                             clientInfo.TryGetProperty("name", out var clientNameElement))
+                        clientName = clientNameElement.GetString() ?? "";
+                }
+
+                if (!string.IsNullOrEmpty(clientName))
+                {
+                    if (isSmallPaper)
+                    {
+                        // 📱 Para papel 58mm: usar solo EMPHASIZED (texto moderado)
+                        var clientNameFormatted = clientName.Length > 32 ? clientName.Substring(0, 32) : clientName;
+                        printer.Write(
+                            ByteSplicer.Combine(
+                                e.SetStyles(PrintStyle.Bold),
+                                e.PrintLine(clientNameFormatted),
+                                e.SetStyles(PrintStyle.None)
+                            )
+                        );
+                    }
+                    else
+                    {
+                        // 🖨️ Para papel 80mm: texto grande normal
+                        printer.Write(
+                            ByteSplicer.Combine(
+                                e.SetStyles(PrintStyle.Bold | PrintStyle.DoubleWidth),
+                                e.PrintLine(clientName),
+                                e.SetStyles(PrintStyle.None)
+                            )
+                        );
+                    }
+                }
+
+                // Fecha de la orden (IGUAL AL PHP)
+                var orderDate = "";
+                if (orderInfo != null && orderInfo.TryGetProperty("date", out var dateElement))
+                    orderDate = dateElement.GetString() ?? "";
+
+                if (!string.IsNullOrEmpty(orderDate))
+                    printer.Write(e.PrintLine(orderDate));
+
+                // Teléfono de la empresa si existe (IGUAL AL PHP)
+                if (orderInfo != null && orderInfo.TryGetProperty("phone", out var phoneElement))
+                {
+                    var phone = phoneElement.GetString();
+                    if (!string.IsNullOrEmpty(phone))
+                        printer.Write(e.PrintLine($"CEL: {phone}"));
+                }
+
+                // Dirección de envío si existe (IGUAL AL PHP)
+                if (orderInfo != null && orderInfo.TryGetProperty("shipping_address", out var addressElement))
+                {
+                    var address = addressElement.GetString();
+                    if (!string.IsNullOrEmpty(address))
+                        printer.Write(e.PrintLine($"DIRECCION: {address}"));
+                }
+
+                // === SEPARADOR GRUESO === (IGUAL AL PHP)
+                printer.Write(e.LeftAlign());
+                var separator = isSmallPaper ? new string('-', 32) : new string('-', 48);
+                printer.Write(e.PrintLine(separator));
+
+                // ENCABEZADOS DE COLUMNAS - Ajustado para tamaño de papel (IGUAL AL PHP)
+                printer.Write(e.SetStyles(PrintStyle.Bold));
+                if (isSmallPaper)
+                {
+                    printer.Write(e.PrintLine("CANT  ITEM")); // Más compacto para 58mm
+                }
+                else
+                {
+                    printer.Write(e.PrintLine("CANT     ITEM")); // Formato normal para 80mm
+                }
+                printer.Write(e.SetStyles(PrintStyle.None));
+                printer.Write(e.PrintLine(separator));
+
+                // === PRODUCTOS - FORMATO OPTIMIZADO PARA TAMAÑO DE PAPEL === (IGUAL AL PHP)
+                var productCount = 0;
+                var currentIndex = 0;
+
+                if (orderData.TryGetProperty("products", out var productsElement) && productsElement.ValueKind == JsonValueKind.Array)
+                {
+                    productCount = productsElement.GetArrayLength();
+
+                    foreach (var product in productsElement.EnumerateArray())
+                    {
+                        currentIndex++;
+
+                        var qty = 1;
+                        var name = "Producto";
+                        var notes = "";
+
+                        if (product.TryGetProperty("quantity", out var qtyElement))
+                            qty = qtyElement.GetInt32();
+                        if (product.TryGetProperty("name", out var nameElement))
+                            name = nameElement.GetString() ?? "Producto";
+                        if (product.TryGetProperty("notes", out var notesElement))
+                            notes = notesElement.GetString() ?? "";
+
+                        if (isSmallPaper)
+                        {
+                            // 📱 FORMATO PARA PAPEL 58MM - Texto moderado sin cortes (IGUAL AL PHP)
+                            var qtyPadded = qty.ToString().PadRight(2);
+
+                            // Calcular espacio disponible: 32 chars - 2 qty - 2 espacios = 28 chars para nombre
+                            var maxNameChars = 28;
+                            var nameFormatted = name.Length > maxNameChars ? name.Substring(0, maxNameChars) : name;
+
+                            printer.Write(
+                                ByteSplicer.Combine(
+                                    e.SetStyles(PrintStyle.Bold),
+                                    e.PrintLine($"{qtyPadded}  {nameFormatted.ToUpper()}"),
+                                    e.SetStyles(PrintStyle.None)
+                                )
+                            );
+
+                            // Si el nombre fue cortado, imprimir el resto en la siguiente línea (IGUAL AL PHP)
+                            if (name.Length > maxNameChars)
+                            {
+                                var remainingName = name.Substring(maxNameChars);
+                                printer.Write(
+                                    ByteSplicer.Combine(
+                                        e.SetStyles(PrintStyle.Bold),
+                                        e.PrintLine($"    {remainingName.ToUpper()}"),
+                                        e.SetStyles(PrintStyle.None)
+                                    )
+                                );
+                            }
+                        }
+                        else
+                        {
+                            // 🖨️ FORMATO PARA PAPEL 80MM - Texto grande normal (IGUAL AL PHP)
+                            var qtyPadded = qty.ToString().PadRight(2);
+                            printer.Write(
+                                ByteSplicer.Combine(
+                                    e.SetStyles(PrintStyle.Bold | PrintStyle.DoubleWidth),
+                                    e.PrintLine($"{qtyPadded}  {name.ToUpper()}"),
+                                    e.SetStyles(PrintStyle.None)
+                                )
+                            );
+                        }
+
+                        // Notas del producto si existen (ajustadas por tamaño de papel) (IGUAL AL PHP)
+                        if (!string.IsNullOrEmpty(notes))
+                        {
+                            printer.Write(e.SetStyles(PrintStyle.Bold));
+
+                            if (isSmallPaper)
+                            {
+                                // Para 58mm: limitar notas a 28 caracteres por línea
+                                var maxNoteChars = 28;
+                                var noteLines = WordWrapText(notes, maxNoteChars);
+                                foreach (var noteLine in noteLines)
+                                {
+                                    printer.Write(e.PrintLine($"  * {noteLine.ToUpper()}"));
+                                }
+                            }
+                            else
+                            {
+                                // Para 80mm: formato normal
+                                printer.Write(e.PrintLine($"    * {notes.ToUpper()}"));
+                            }
+
+                            printer.Write(e.SetStyles(PrintStyle.None));
+                        }
+
+                        // Agregar espacio solo si no es el último producto (IGUAL AL PHP)
+                        if (currentIndex < productCount)
+                        {
+                            printer.Write(e.PrintLine(""));
+                        }
+                    }
+                }
+
+                // === SEPARADOR FINAL === (IGUAL AL PHP)
+                printer.Write(e.PrintLine(separator));
+
+                // NOTA GENERAL si existe (IGUAL AL PHP)
+                var generalNote = "";
+                if (orderInfo != null)
+                {
+                    if (orderInfo.TryGetProperty("note", out var noteElement))
+                        generalNote = noteElement.GetString() ?? "";
+                    else if (orderData.TryGetProperty("general_note", out var generalNoteElement))
+                        generalNote = generalNoteElement.GetString() ?? "";
+                }
+
+                if (!string.IsNullOrEmpty(generalNote))
+                {
+                    printer.Write(
+                        ByteSplicer.Combine(
+                            e.SetStyles(PrintStyle.Bold),
+                            e.PrintLine($"NOTA: {generalNote.ToUpper()}"),
+                            e.SetStyles(PrintStyle.None),
+                            e.PrintLine("")
+                        )
+                    );
+                }
+
+                // === PIE DE PÁGINA === (IGUAL AL PHP)
+                // Usuario que atiende
+                var userName = "Sistema";
+                if (orderData.TryGetProperty("user", out var userElement))
+                {
+                    if (userElement.TryGetProperty("name", out var userNameElement))
+                        userName = userNameElement.GetString() ?? "Sistema";
+                    else if (userElement.TryGetProperty("nickname", out var userNickElement))
+                        userName = userNickElement.GetString() ?? "Sistema";
+                }
+                printer.Write(e.PrintLine($"Atendido por: {userName}"));
+
+                // Timestamp de impresión
+                var datePrint = "";
+                if (orderInfo != null && orderInfo.TryGetProperty("date_print", out var datePrintElement))
+                    datePrint = datePrintElement.GetString() ?? "";
+
+                if (!string.IsNullOrEmpty(datePrint))
+                    printer.Write(e.PrintLine($"Impresión: {datePrint}"));
+
+                // ID de orden más visible (IGUAL AL PHP)
+                var orderIdDisplay = "";
+                if (orderInfo != null)
+                {
+                    if (orderInfo.TryGetProperty("shipping_address", out var shippingElement) &&
+                        !string.IsNullOrEmpty(shippingElement.GetString()) &&
+                        orderInfo.TryGetProperty("order_number", out var orderNumberElement))
+                    {
+                        orderIdDisplay = orderNumberElement.GetString() ?? "";
+                    }
+                    else if (orderInfo.TryGetProperty("id", out var idElement))
+                    {
+                        orderIdDisplay = idElement.ToString();
+                    }
+                }
+
+                if (string.IsNullOrEmpty(orderIdDisplay))
+                    orderIdDisplay = "1";
+
+                printer.Write(
+                    ByteSplicer.Combine(
+                        e.SetStyles(PrintStyle.Bold),
+                        e.PrintLine($"ORDEN: {orderIdDisplay}"),
+                        e.SetStyles(PrintStyle.None)
+                    )
+                );
+
+                printer.Write(e.PrintLine(""));
+                printer.Write(e.FullCutAfterFeed(1));
+
+                // Abrir caja si se requiere (IGUAL AL PHP)
+                if (job.TryGetProperty("open_cash", out var openCashElement) && openCashElement.GetBoolean())
+                {
+                    printer.Write(e.OpenCashDrawerPin2());
+                    AddLog("💰 Caja abierta como parte del proceso de impresión ESC/POS");
+                }
+
+                var executionTime = (DateTime.Now - startTime).TotalMilliseconds;
+                AddLog($"🚀 Orden impresa con ESC/POS en {executionTime:F2}ms (ULTRA RÁPIDO)");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"❌ Error imprimiendo con ESC/POS: {ex.Message}");
+            }
+        }
+
+        private async Task PrintOrderWithImage(BasePrinter printer, ICommandEmitter e, string base64Image)
+        {
+            try
+            {
+                AddLog("🖼️ Procesando imagen base64...");
+
+                // Decodificar imagen base64
+                var imageData = Convert.FromBase64String(base64Image.Split(',').Last());
+                var tempPath = Path.GetTempFileName() + ".png";
+                await File.WriteAllBytesAsync(tempPath, imageData);
+
+                // Imprimir imagen usando ESC/POS-.NET
+                var img = new FileInfo(tempPath);
+
+                printer.Write(
+                    ByteSplicer.Combine(
+                        e.CenterAlign(),
+                        e.PrintImage(img, true),
+                        e.PrintLine(""),
+                        e.FullCutAfterFeed(3)
+                    )
+                );
+
+                // Limpiar archivo temporal
+                File.Delete(tempPath);
+
+                AddLog("✅ Imagen impresa correctamente");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"❌ Error imprimiendo imagen: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Word wrap mejorado para ESC/POS - Optimizado para papel 58mm (IGUAL AL PHP)
+        /// </summary>
+        private List<string> WordWrapText(string text, int maxChars)
+        {
+            if (text.Length <= maxChars)
+            {
+                return new List<string> { text }; // Si el texto ya cabe, devolver como está
+            }
+
+            var words = text.Split(' ');
+            var lines = new List<string>();
+            var currentLine = "";
+
+            foreach (var word in words)
+            {
+                // Si la palabra sola es más larga que el ancho máximo, dividirla
+                if (word.Length > maxChars)
+                {
+                    // Finalizar línea actual si tiene contenido
+                    if (!string.IsNullOrEmpty(currentLine))
+                    {
+                        lines.Add(currentLine.Trim());
+                        currentLine = "";
+                    }
+
+                    // Dividir palabra larga en chunks
+                    for (int i = 0; i < word.Length; i += maxChars)
+                    {
+                        var chunk = word.Substring(i, Math.Min(maxChars, word.Length - i));
+                        lines.Add(chunk);
+                    }
+                    continue;
+                }
+
+                // Verificar si la palabra cabe en la línea actual
+                var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
+
+                if (testLine.Length <= maxChars)
+                {
+                    currentLine = testLine;
+                }
+                else
+                {
+                    // No cabe, finalizar línea actual y empezar nueva
+                    if (!string.IsNullOrEmpty(currentLine))
+                    {
+                        lines.Add(currentLine.Trim());
+                    }
+                    currentLine = word;
+                }
+            }
+
+            // Agregar última línea si tiene contenido
+            if (!string.IsNullOrEmpty(currentLine))
+            {
+                lines.Add(currentLine.Trim());
+            }
+
+            return lines;
         }
 
         private void AddLog(string message)
