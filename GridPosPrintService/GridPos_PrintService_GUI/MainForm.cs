@@ -11,7 +11,7 @@ namespace GridPosPrintService
     public partial class MainForm : Form
     {
         private readonly HttpClient httpClient;
-        private Timer monitorTimer;
+        private System.Windows.Forms.Timer monitorTimer;
         private string apiBaseUrl = "";
         private string clientSlug = "";
         private string authToken = "f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3";
@@ -337,7 +337,7 @@ namespace GridPosPrintService
 
         private void SetupTimer()
         {
-            monitorTimer = new Timer
+            monitorTimer = new System.Windows.Forms.Timer
             {
                 Interval = 2000 // 2 segundos
             };
