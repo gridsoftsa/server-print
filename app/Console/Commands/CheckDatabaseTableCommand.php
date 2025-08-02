@@ -160,7 +160,7 @@ class CheckDatabaseTableCommand extends Command
     {
         try {
             // 🚀 OPTIMIZACIÓN 1: Configurar memoria y timeouts para máxima velocidad
-            ini_set('memory_limit', '1024M'); // Reducir memoria para mayor velocidad
+            ini_set('memory_limit', '1024M');
 
             // 🚀 OPTIMIZACIÓN 2: Validación ultra rápida
             if (empty($base64Image)) {
@@ -170,31 +170,28 @@ class CheckDatabaseTableCommand extends Command
             // 🚀 OPTIMIZACIÓN 3: Decodificar base64 directamente sin regex lento
             $imageData = base64_decode(str_replace(['data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/jpg;base64,'], '', $base64Image));
 
-            // 🚀 OPTIMIZACIÓN 3: Decodificar base64 directamente sin regex lento
-            $logo = base64_decode(str_replace(['data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/jpg;base64,'], '', $logoBase64));
-
-
             // 🚀 OPTIMIZACIÓN 4: Usar directorio temporal del sistema (más rápido)
             $tempPath = sys_get_temp_dir() . '/sale_' . uniqid() . '.png';
             file_put_contents($tempPath, $imageData);
 
-            $tempPathLogoBase64 = sys_get_temp_dir() . '/sale_' . uniqid() . '.png';
-            file_put_contents($tempPathLogoBase64, $logo);
-
-            // 🚀 OPTIMIZACIÓN 5: CACHÉ PERMANENTE DEL LOGO DE EMPRESA (URL desde this.company.logo)
+            // 🚀 OPTIMIZACIÓN 5: PRIORIZAR logo_base64 SOBRE logo URL
             $tempPathLogo = null;
             if ($logoBase64 && !empty($logoBase64)) {
-                // 🚀 ULTRA RÁPIDO: Logo siempre viene como URL desde this.company.logo
-                $logoHash = md5($logoBase64);
+                // 🚀 PRIORIDAD ALTA: Usar logo_base64 directamente
+                $logoData = base64_decode(str_replace(['data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/jpg;base64,'], '', $logoBase64));
+                $tempPathLogo = sys_get_temp_dir() . '/logo_' . uniqid() . '.png';
+                file_put_contents($tempPathLogo, $logoData);
+            } elseif ($logo && !empty($logo)) {
+                // 🚀 FALLBACK: Usar logo URL si no hay logo_base64
+                $logoHash = md5($logo);
                 $cacheDir = storage_path('app/public/logo_cache');
                 if (!is_dir($cacheDir)) {
                     mkdir($cacheDir, 0755, true);
                 }
                 $tempPathLogo = $cacheDir . '/company_logo_' . $logoHash . '.png';
 
-                // 🚀 ULTRA RÁPIDO: Si ya existe en caché, usar inmediatamente
                 if (!file_exists($tempPathLogo)) {
-                    $logoData = file_get_contents($logoBase64);
+                    $logoData = file_get_contents($logo);
                     if ($logoData !== false) {
                         file_put_contents($tempPathLogo, $logoData);
                     } else {
@@ -229,156 +226,31 @@ class CheckDatabaseTableCommand extends Command
 
             $printer->close();
 
-            // 🚀 OPTIMIZACIÓN 10: Limpieza ultra rápida (SOLO imagen de factura, NO logo de empresa)
-            @unlink($tempPath); // Solo eliminar imagen de factura temporal
+            // 🚀 OPTIMIZACIÓN 10: Limpieza ultra rápida
+            @unlink($tempPath); // Eliminar imagen de factura temporal
 
-            // 🚀 NO ELIMINAR LOGO DE EMPRESA: Se mantiene en caché permanente para reutilización
-            // El logo de empresa siempre es el mismo, no necesita limpieza
-        } catch (\Exception $e) {
-            // 🚀 OPTIMIZACIÓN: Limpieza en caso de error (SOLO imagen de factura)
-            @unlink($tempPath ?? '');
-
-            // 🚀 NO ELIMINAR LOGO DE EMPRESA: Se mantiene en caché permanente
-            // El logo de empresa siempre es el mismo, no se elimina en caso de error
-        }
-    }
-
-    public function printSale($data)
-    {
-        ini_set('memory_limit', '1024M');
-
-        $printerName = $data['printerName'];
-        $openCash = $data['openCash'] ?? false;
-        $base64Image = $data['image'];
-        $logoBase64 = $data['logoBase64'];
-
-        if (empty($base64Image)) {
-            return response()->json(['message' => 'Imagen no proporcionada'], 400);
-        }
-
-        return $this->printSaleWithImage($printerName, $base64Image, $logoBase64, $openCash);
-    }
-
-    /**
-     * 🐌 MÉTODO TRADICIONAL: Imprimir venta usando imagen (lento - solo compatibilidad)
-     */
-    private function printSaleWithImage($printerName, $base64Image, $logoBase64, $openCash = false)
-    {
-        try {
-            // Decodificar el string base64
-            $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64Image));
-
-            // Guardar imagen temporal
-            $tempPath = storage_path('app/public/temp_image_' . uniqid() . '.png');
-            file_put_contents($tempPath, $imageData);
-
-            // 🚀 PROCESAMIENTO OPTIMIZADO DE LOGO para método tradicional
-            $tempPathLogo = null;
-
-            if ($logoBase64) {
-                // Verificar si es una URL o base64
-                if (filter_var($logoBase64, FILTER_VALIDATE_URL)) {
-                    // 🚀 MODO OPTIMIZADO: Es una URL, descargarla
-                    $tempPathLogo = $this->downloadLogoFromUrl($logoBase64);
-
-                    if (!$tempPathLogo || !file_exists($tempPathLogo)) {
-                        $tempPathLogo = null;
-                    }
-                } else {
-                    // 🐌 MODO TRADICIONAL: Es base64, procesarlo como antes
-                    $logoData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $logoBase64));
-                    $tempPathLogo = storage_path('app/public/temp_logo_' . uniqid() . '.png');
-                    file_put_contents($tempPathLogo, $logoData);
-                }
-            }
-
-            $connector = new WindowsPrintConnector($printerName);
-            $printer = new Printer($connector);
-
-            // Cargar y mostrar logo si está presente
-            if ($tempPathLogo) {
-                $imgLogo = EscposImage::load($tempPathLogo);
-                $printer->setJustification(Printer::JUSTIFY_CENTER);
-                $printer->bitImage($imgLogo);
-                $printer->feed(1);
-            }
-
-            // Cargar y mostrar imagen principal
-            $img = EscposImage::load($tempPath);
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->bitImage($img);
-            $printer->feed(1);
-            $printer->cut();
-
-            if ($openCash) {
-                $printer->pulse();
-            }
-
-            $printer->close();
-
-            // Eliminar archivos temporales
-            @unlink($tempPath);
-            if ($tempPathLogo) {
-                // Solo eliminar si no es un archivo de caché (archivos temporales contienen 'temp_logo_')
-                if (strpos($tempPathLogo, 'temp_logo_') !== false) {
-                    @unlink($tempPathLogo); // Archivo temporal base64
-                }
-                // Los archivos de caché (logo_cache/) se mantienen para reutilización
-            }
-
-            return response()->json(['message' => 'Orden impresa correctamente'], 200);
-        } catch (\Exception $e) {
-            // Eliminar archivos temporales en caso de error
-            @unlink($tempPath);
-            if (isset($tempPathLogo) && $tempPathLogo && strpos($tempPathLogo, 'temp_logo_') !== false) {
+            // Limpiar logo temporal si es base64 (no caché)
+            if ($tempPathLogo && strpos($tempPathLogo, 'logo_') !== false) {
                 @unlink($tempPathLogo); // Solo archivos temporales base64
             }
-
-            return response()->json(['message' => 'Error al imprimir la factura', 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * 🚀 MÉTODO ULTRA RÁPIDO: Descargar logo de empresa desde URL (this.company.logo)
-     */
-    private function downloadLogoFromUrl($url)
-    {
-        try {
-            $logoHash = md5($url);
-            $cacheDir = storage_path('app/public/logo_cache');
-
-            if (!is_dir($cacheDir)) {
-                mkdir($cacheDir, 0755, true);
-            }
-
-            // 🚀 CACHÉ PERMANENTE: Logo de empresa siempre el mismo
-            $cachePath = $cacheDir . '/company_logo_' . $logoHash . '.png';
-
-            // 🚀 ULTRA RÁPIDO: Si ya existe en caché permanente, devolver inmediatamente
-            if (file_exists($cachePath)) {
-                return $cachePath;
-            }
-
-            // 🚀 OPTIMIZACIÓN: Descargar con timeout corto solo la primera vez
-            $context = stream_context_create([
-                'http' => [
-                    'timeout' => 5,
-                    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                ]
-            ]);
-
-            $logoData = file_get_contents($url, false, $context);
-
-            if ($logoData !== false) {
-                file_put_contents($cachePath, $logoData);
-                return $cachePath;
-            }
-
-            return null;
+            // Los archivos de caché (logo_cache/) se mantienen para reutilización
         } catch (\Exception $e) {
-            return null;
+            // 🚀 OPTIMIZACIÓN: Limpieza en caso de error
+            @unlink($tempPath ?? '');
+
+            // Limpiar logo temporal si es base64 (no caché)
+            if (isset($tempPathLogo) && $tempPathLogo && strpos($tempPathLogo, 'logo_') !== false) {
+                @unlink($tempPathLogo); // Solo archivos temporales base64
+            }
+            // Los archivos de caché (logo_cache/) se mantienen para reutilización
         }
     }
+
+
+
+
+
+
 
     /**
      * Eliminar registro de la cola de impresión
