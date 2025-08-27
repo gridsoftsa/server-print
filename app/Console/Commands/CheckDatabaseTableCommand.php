@@ -123,7 +123,7 @@ class CheckDatabaseTableCommand extends Command
         $data = [
             'printerName' => $value['printer'],
             'image' => $value['image'],
-            'logoBase64' => $value['logo'],
+            'logoBase64' => $value['logo_base64'] ?? null,
             'openCash' => $value['open_cash']
         ];
         $request = Request::create('/', 'GET', $data);
