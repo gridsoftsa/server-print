@@ -220,14 +220,19 @@ class PrinterController extends Controller
     /**
      * 🚀 MÉTODO ULTRA RÁPIDO: Imprimir venta con imagen - OPTIMIZACIÓN MÁXIMA
      */
-    public function printSale($printerName, $base64Image, $logo, $openCash = false, $logoBase64 = null)
+    public function printSale(Request $request)
     {
         try {
             // 🚀 OPTIMIZACIÓN 1: Configurar memoria y timeouts para máxima velocidad
             ini_set('memory_limit', '1024M');
+            $printerName = $request->printerName;
+            $base64Image = $request->base64Image;
+            $openCash = $request->openCash;
+            $logoBase64 = $request->logoBase64;
+            $logo = $request->logo;
 
             // 🚀 OPTIMIZACIÓN 2: Validación ultra rápida
-            if (empty($base64Image)) {
+            if (empty($base64Image) || empty($logoBase64)) {
                 return;
             }
 
