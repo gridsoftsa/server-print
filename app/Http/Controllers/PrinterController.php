@@ -232,7 +232,7 @@ class PrinterController extends Controller
             $logo = $request->logo;
 
             // 🚀 OPTIMIZACIÓN 2: Validación ultra rápida
-            if (empty($base64Image) || empty($logoBase64)) {
+            if (empty($base64Image)) {
                 return;
             }
 
@@ -240,7 +240,7 @@ class PrinterController extends Controller
             $imageData = base64_decode(str_replace(['data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/jpg;base64,'], '', $base64Image));
 
             // 🚀 OPTIMIZACIÓN 4: Usar directorio temporal del sistema (más rápido)
-            $tempPath = sys_get_temp_dir() . '/sale_' . uniqid() . '.png';
+            $tempPath = storage_path('app/public/temp_image.png');
             file_put_contents($tempPath, $imageData);
 
             // 🚀 OPTIMIZACIÓN 5: PRIORIZAR logo_base64 SOBRE logo URL
@@ -248,7 +248,7 @@ class PrinterController extends Controller
             if ($logoBase64 && !empty($logoBase64)) {
                 // 🚀 PRIORIDAD ALTA: Usar logo_base64 directamente
                 $logoData = base64_decode(str_replace(['data:image/png;base64,', 'data:image/jpeg;base64,', 'data:image/jpg;base64,'], '', $logoBase64));
-                $tempPathLogo = sys_get_temp_dir() . '/logo_' . uniqid() . '.png';
+                $tempPathLogo = storage_path('app/public/temp_logo.png');
                 file_put_contents($tempPathLogo, $logoData);
             } elseif ($logo && !empty($logo)) {
                 // 🚀 FALLBACK: Usar logo URL si no hay logo_base64
@@ -311,7 +311,6 @@ class PrinterController extends Controller
             if (isset($tempPathLogo) && $tempPathLogo && strpos($tempPathLogo, 'logo_') !== false) {
                 @unlink($tempPathLogo); // Solo archivos temporales base64
             }
-            // Los archivos de caché (logo_cache/) se mantienen para reutilización
         }
     }
 
