@@ -40,22 +40,22 @@ class CheckDatabaseTableCommand extends Command
             'X-Client-Slug' => $api_url_pos,
         ])->withoutVerifying()->get($url);
 
-        Log::info('Requesting API URL: ' . $url, [
+        /* Log::info('Requesting API URL: ' . $url, [
             'headers' => [
                 'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
                 'X-Client-Slug' => $api_url_pos,
             ]
-        ]);
+        ]); */
 
         $data_resp = $response->json();
-        Log::info('Response from API: ', ['response' => $data_resp]);
+        //Log::info('Response from API: ', ['response' => $data_resp]);
 
         // Si response es un array vacío, terminar inmediatamente
         if (empty($data_resp)) {
             return 0;
         }
 
-        Log::info('Procesando impresiones y apertura de caja');
+        //Log::info('Procesando impresiones y apertura de caja');
         foreach ($data_resp as $key => $value) {
             try {
                 switch ($value['action']) {
@@ -95,7 +95,7 @@ class CheckDatabaseTableCommand extends Command
      */
     private function processOpenCashDrawer($controller, $value)
     {
-        Log::info('Abriendo caja en impresora: ' . $value['printer']);
+        //Log::info('Abriendo caja en impresora: ' . $value['printer']);
         $controller->openCash($value['printer']);
     }
 
@@ -104,7 +104,7 @@ class CheckDatabaseTableCommand extends Command
      */
     private function processOrderPrint($controller, $value)
     {
-        Log::info('Imprimiendo orden en impresora: ' . $value['printer']);
+        //Log::info('Imprimiendo orden en impresora: ' . $value['printer']);
         $data = [
             'printerName' => $value['printer'],
             'image' => $value['image'],
@@ -119,7 +119,7 @@ class CheckDatabaseTableCommand extends Command
      */
     private function processSalePrint($controller, $value)
     {
-        Log::info('Imprimiendo venta en impresora: ' . $value['printer']);
+        //Log::info('Imprimiendo venta en impresora: ' . $value['printer']);
         $data = [
             'printerName' => $value['printer'],
             'image' => $value['image'],
@@ -141,7 +141,7 @@ class CheckDatabaseTableCommand extends Command
                 'X-Client-Slug' => $apiUrlPos,
             ])->withoutVerifying()->get($baseUrl . '/' . $id);
 
-            Log::info('Registro eliminado de la cola: ' . $id);
+            //Log::info('Registro eliminado de la cola: ' . $id);
         } catch (\Exception $e) {
             Log::error('Error eliminando registro de la cola: ' . $e->getMessage());
         }
