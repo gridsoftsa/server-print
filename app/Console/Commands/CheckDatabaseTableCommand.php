@@ -110,10 +110,20 @@ class CheckDatabaseTableCommand extends Command
                 'company' => $value['company'] ?? null,
             ];
             $request = Request::create('/', 'GET', $data);
-            if ($value['print_settings']['use_image']) {
+            // Si viene imagen pero no viene use_image, usar imagen por defecto
+            if (!isset($value['print_settings']['use_image']) && !empty($value['image'])) {
                 $controller->printSale($request);
             }
-            if (!$value['print_settings']['use_image']) {
+            // Si use_image es true y viene imagen, usar imagen
+            else if ($value['print_settings']['use_image'] && !empty($value['image'])) {
+                $controller->printSale($request);
+            }
+            // Si use_image es false y viene data_json, usar ESC/POS
+            else if (
+                isset($value['print_settings']['use_image'])
+                && !$value['print_settings']['use_image']
+                && !empty($value['data_json'])
+            ) {
                 $controller->printSaleEscPos($request);
             }
         } catch (\Exception $e) {
