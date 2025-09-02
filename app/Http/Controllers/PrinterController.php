@@ -822,29 +822,30 @@ class PrinterController extends Controller
                 }
             }
 
-            if (!empty($cufe) && $cufe !== 'null' && strtolower($cufe) !== 'null') {
-                Log::info('🔗 Generando QR con CUFE: ' . $cufe);
+            /* if (!empty($cufe) && $cufe !== 'null' && strtolower($cufe) !== 'null') { */
+            Log::info('🔗 Generando QR con CUFE: ' . $cufe);
+            $cufe = 'aesrqwersdfsdfsdfsdfsdfsdfsdf';
 
-                // URL exacta como SaleFormatter.kt y TicketPrint.vue
-                $qrUrl = "https://catalogo-vpfe.dian.gov.co/User/SearchDocument?documentkey=" . $cufe;
+            // URL exacta como SaleFormatter.kt y TicketPrint.vue
+            $qrUrl = "https://catalogo-vpfe.dian.gov.co/User/SearchDocument?documentkey=" . $cufe;
 
-                // Imprimir etiqueta CUFE centrada
-                $printer->setJustification(Printer::JUSTIFY_CENTER);
-                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                $printer->text("CUFE:\n");
-                $printer->selectPrintMode(); // Reset
+            // Imprimir etiqueta CUFE centrada
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+            $printer->text("CUFE:\n");
+            $printer->selectPrintMode(); // Reset
 
-                // ✅ Generar e imprimir QR Code
-                $this->printQRCode($printer, $qrUrl);
+            // ✅ Generar e imprimir QR Code
+            $this->printQRCode($printer, $qrUrl);
 
-                // CUFE como texto (simulando que está al lado como SaleFormatter.kt)
-                $printer->setJustification(Printer::JUSTIFY_CENTER);
-                $printer->text($cufe . "\n");
-                $printer->feed(1);
-                Log::info('✅ QR y CUFE texto impresos');
-            } else {
+            // CUFE como texto (simulando que está al lado como SaleFormatter.kt)
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+            $printer->text($cufe . "\n");
+            $printer->feed(1);
+            Log::info('✅ QR y CUFE texto impresos');
+            /* } else {
                 Log::info('⚠️ CUFE no válido para QR: ' . $cufe);
-            }
+            } */
 
             // MENSAJE DE AGRADECIMIENTO (normalizado)
             $printer->setJustification(Printer::JUSTIFY_CENTER);
@@ -1008,57 +1009,6 @@ class PrinterController extends Controller
             if (isset($tempPath) && file_exists($tempPath)) {
                 @unlink($tempPath);
             }
-        }
-    }
-
-    /**
-     * 🖼️ Imprimir logo de la empresa desde URL (Company.logo)
-     */
-    private function printCompanyLogoFromUrl($printer, $logoUrl)
-    {
-        try {
-            Log::info('🖼️ Descargando logo desde URL: ' . $logoUrl);
-
-            // ✅ Sistema de caché para logos URL (como printSale optimizado)
-            $logoHash = md5($logoUrl);
-            $cacheDir = storage_path('app/public/logo_cache');
-            if (!is_dir($cacheDir)) {
-                mkdir($cacheDir, 0755, true);
-            }
-            $cachedLogoPath = $cacheDir . '/company_logo_' . $logoHash . '.png';
-
-            // ✅ Usar caché si existe
-            if (file_exists($cachedLogoPath)) {
-                Log::info('🖼️ Usando logo desde caché');
-                $logoPath = $cachedLogoPath;
-            } else {
-                // Descargar logo
-                $logoData = @file_get_contents($logoUrl);
-                if ($logoData === false) {
-                    Log::warning('⚠️ No se pudo descargar el logo desde URL: ' . $logoUrl);
-                    return;
-                }
-
-                // Guardar en caché
-                file_put_contents($cachedLogoPath, $logoData);
-                $logoPath = $cachedLogoPath;
-                Log::info('🖼️ Logo descargado y guardado en caché');
-            }
-
-            // Imprimir logo
-            if (file_exists($logoPath)) {
-                $imgLogo = EscposImage::load($logoPath);
-                $printer->setJustification(Printer::JUSTIFY_CENTER);
-                $printer->bitImage($imgLogo);
-                $printer->feed(1);
-
-                Log::info('✅ Logo URL impreso correctamente');
-            }
-        } catch (\Exception $e) {
-            Log::error('❌ Error procesando logo URL', [
-                'url' => $logoUrl,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 
