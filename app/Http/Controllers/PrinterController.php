@@ -320,6 +320,7 @@ class PrinterController extends Controller
      */
     public function printSaleEscPos(Request $request)
     {
+        Log::info('🧾 Iniciando impresión de venta ESC/POS', ['request' => $request->all()]);
         try {
             // 🚀 Configuración de memoria y datos
             ini_set('memory_limit', '1024M');

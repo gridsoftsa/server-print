@@ -110,9 +110,11 @@ class CheckDatabaseTableCommand extends Command
         ];
         $request = Request::create('/', 'GET', $data);
         if ($value['use_image']) {
+            Log::info('Imprimiendo venta con imagen');
             $controller->printSale($request);
         }
         if ($value['data_json']) {
+            Log::info('Imprimiendo venta con datos JSON', ['data' => $data]);
             $controller->printSaleEscPos($request);
         }
     }
