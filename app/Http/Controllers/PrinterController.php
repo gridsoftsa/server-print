@@ -398,33 +398,77 @@ class PrinterController extends Controller
         try {
             Log::info('🏢 Imprimiendo encabezado de empresa...');
 
-            // Obtener información de la empresa desde subsidiary (sucursal)
+            // ✅ PRIORIDAD 1: Datos de la empresa desde el modelo Company
+            $company = $saleData['company'] ?? null;
             $subsidiary = $saleData['subsidiary'] ?? [];
-            $companyName = $subsidiary['name'] ?? '';
-            $companyAddress = $subsidiary['address'] ?? '';
-            $companyPhone = $subsidiary['phone'] ?? '';
 
-            // NIT desde company_id (si está disponible)
-            $companyId = $saleData['company_id'] ?? '';
+            // ✅ Usar datos de Company como principal, subsidiary como fallback
+            $companyName = '';
+            $companyAddress = '';
+            $companyPhone = '';
+            $companyNit = '';
 
-            Log::info('🏢 Datos de empresa obtenidos', [
+            if ($company) {
+                // Datos principales desde Company model
+                $companyName = $company['name'] ?? $company['business_name'] ?? '';
+                $companyAddress = $company['address'] ?? '';
+                $companyPhone = $company['phone'] ?? '';
+                $companyNit = $company['nit'] ?? '';
+                Log::info('🏢 Usando datos del modelo Company');
+            }
+
+            // ✅ Fallback a subsidiary si Company no tiene datos
+            if (empty($companyName)) {
+                $companyName = $subsidiary['name'] ?? '';
+                Log::info('🏢 Fallback: nombre desde subsidiary');
+            }
+            if (empty($companyAddress)) {
+                $companyAddress = $subsidiary['address'] ?? '';
+                Log::info('🏢 Fallback: dirección desde subsidiary');
+            }
+            if (empty($companyPhone)) {
+                $companyPhone = $subsidiary['phone'] ?? '';
+                Log::info('🏢 Fallback: teléfono desde subsidiary');
+            }
+
+            // ✅ Fallback final para NIT desde company_id
+            if (empty($companyNit)) {
+                $companyNit = $saleData['company_id'] ?? '';
+                Log::info('🏢 Fallback: NIT desde company_id');
+            }
+
+            Log::info('🏢 Datos finales de empresa', [
                 'name' => $companyName,
                 'address' => $companyAddress,
                 'phone' => $companyPhone,
-                'company_id' => $companyId
+                'nit' => $companyNit,
+                'has_company_model' => !empty($company)
             ]);
 
             // === LOGO DE LA EMPRESA (si existe) ===
+            // ✅ PRIORIDAD: logo_base64 > Company.logo URL
             $logoBase64 = $saleData['logo_base64'] ?? null;
+            $companyLogoUrl = null;
+
+            if ($company && !empty($company['logo'])) {
+                $companyLogoUrl = $company['logo'];
+                Log::info('🖼️ Logo URL encontrado en Company: ' . $companyLogoUrl);
+            }
+
             if (!empty($logoBase64) && $logoBase64 !== 'null') {
-                Log::info('🖼️ Logo detectado, imprimiendo...');
+                Log::info('🖼️ Logo Base64 detectado, imprimiendo...');
                 $this->printCompanyLogo($printer, $logoBase64);
+            } elseif (!empty($companyLogoUrl)) {
+                Log::info('🖼️ Logo URL detectado, descargando e imprimiendo...');
+                $this->printCompanyLogoFromUrl($printer, $companyLogoUrl);
+            } else {
+                Log::info('⚠️ No se encontró logo (ni Base64 ni URL)');
             }
 
             // === INFORMACIÓN DE EMPRESA CENTRADA ===
             $printer->setJustification(Printer::JUSTIFY_CENTER);
 
-            // Nombre de la empresa (centrado, negrita, doble altura)
+            // ✅ Nombre de la empresa (centrado, negrita, doble altura)
             if (!empty($companyName)) {
                 $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
                 $printer->text(strtoupper($this->normalizeText($companyName)) . "\n");
@@ -432,22 +476,22 @@ class PrinterController extends Controller
                 Log::info('🏢 Nombre empresa impreso: ' . $companyName);
             }
 
-            // Dirección (centrada)
+            // ✅ Dirección (centrada)
             if (!empty($companyAddress)) {
                 $printer->text("DIRECCION: " . strtoupper($this->normalizeText($companyAddress)) . "\n");
                 Log::info('🏢 Dirección impresa: ' . $companyAddress);
             }
 
-            // Teléfono/Celular (centrado)
+            // ✅ Teléfono/Celular (centrado)
             if (!empty($companyPhone)) {
                 $printer->text("CELULAR: " . $this->normalizeText($companyPhone) . "\n");
                 Log::info('🏢 Teléfono impreso: ' . $companyPhone);
             }
 
-            // NIT (centrado) - Usar el company_id como referencia
-            if (!empty($companyId)) {
-                $printer->text("NIT: " . $this->normalizeText($companyId) . "\n");
-                Log::info('🏢 NIT impreso: ' . $companyId);
+            // ✅ NIT (centrado) - Prioridad: Company.nit > company_id
+            if (!empty($companyNit)) {
+                $printer->text("NIT: " . $this->normalizeText($companyNit) . "\n");
+                Log::info('🏢 NIT impreso: ' . $companyNit);
             }
 
             $printer->feed(1);
@@ -879,7 +923,7 @@ class PrinterController extends Controller
             // MENSAJE DE AGRADECIMIENTO (normalizado)
             $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->text($this->normalizeText("¡Gracias por tu compra!\n"));
-
+            $printer->feed(1);
             // FOOTER GRIDPOS
             $currentYear = date('Y');
             $printer->text("GridPOS $currentYear - GridSoft S.A.S\n");
@@ -991,10 +1035,61 @@ class PrinterController extends Controller
                 // Limpiar archivo temporal
                 @unlink($tempPath);
 
-                Log::info('✅ Logo impreso correctamente');
+                Log::info('✅ Logo Base64 impreso correctamente');
             }
         } catch (\Exception $e) {
-            Log::error('❌ Error procesando logo', ['error' => $e->getMessage()]);
+            Log::error('❌ Error procesando logo Base64', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 🖼️ Imprimir logo de la empresa desde URL (Company.logo)
+     */
+    private function printCompanyLogoFromUrl($printer, $logoUrl)
+    {
+        try {
+            Log::info('🖼️ Descargando logo desde URL: ' . $logoUrl);
+
+            // ✅ Sistema de caché para logos URL (como printSale optimizado)
+            $logoHash = md5($logoUrl);
+            $cacheDir = storage_path('app/public/logo_cache');
+            if (!is_dir($cacheDir)) {
+                mkdir($cacheDir, 0755, true);
+            }
+            $cachedLogoPath = $cacheDir . '/company_logo_' . $logoHash . '.png';
+
+            // ✅ Usar caché si existe
+            if (file_exists($cachedLogoPath)) {
+                Log::info('🖼️ Usando logo desde caché');
+                $logoPath = $cachedLogoPath;
+            } else {
+                // Descargar logo
+                $logoData = @file_get_contents($logoUrl);
+                if ($logoData === false) {
+                    Log::warning('⚠️ No se pudo descargar el logo desde URL: ' . $logoUrl);
+                    return;
+                }
+
+                // Guardar en caché
+                file_put_contents($cachedLogoPath, $logoData);
+                $logoPath = $cachedLogoPath;
+                Log::info('🖼️ Logo descargado y guardado en caché');
+            }
+
+            // Imprimir logo
+            if (file_exists($logoPath)) {
+                $imgLogo = EscposImage::load($logoPath);
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->bitImage($imgLogo);
+                $printer->feed(1);
+
+                Log::info('✅ Logo URL impreso correctamente');
+            }
+        } catch (\Exception $e) {
+            Log::error('❌ Error procesando logo URL', [
+                'url' => $logoUrl,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 
