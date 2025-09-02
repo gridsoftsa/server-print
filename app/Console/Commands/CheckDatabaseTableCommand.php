@@ -112,7 +112,6 @@ class CheckDatabaseTableCommand extends Command
             $request = Request::create('/', 'GET', $data);
             // ✅ LÓGICA PRINCIPAL: Si NO hay logo_base64, usar printSale (imagen)
             if (empty($value['logo_base64']) || $value['logo_base64'] === null) {
-                Log::info('🖼️ Sin logo_base64 - Usando impresión con imagen (printSale)');
                 $controller->printSale($request);
             }
             // ✅ Si HAY logo_base64 + data_json Y use_image es false, usar ESC/POS
@@ -122,12 +121,10 @@ class CheckDatabaseTableCommand extends Command
                 isset($value['print_settings']['use_image']) &&
                 !$value['print_settings']['use_image']
             ) {
-                Log::info('📄 Con logo_base64 + data_json + use_image=false - Usando ESC/POS (printSaleEscPos)');
                 $controller->printSaleEscPos($request);
             }
             // ✅ FALLBACK: Si hay logo_base64 pero use_image es true o no está definido, usar imagen
             else {
-                Log::info('🖼️ Fallback - Usando impresión con imagen (printSale)');
                 $controller->printSale($request);
             }
         } catch (\Exception $e) {
