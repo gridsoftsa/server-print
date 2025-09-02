@@ -108,14 +108,14 @@ class CheckDatabaseTableCommand extends Command
                 'logoBase64' => $value['logo_base64'] ?? null,
                 'logo' => $value['logo'] ?? null,
                 'openCash' => $value['open_cash'] ?? false,
-                'useImage' => $value['use_image'] ?? false,
+                'useImage' => $value['print_settings']['use_image'] ?? false,
                 'dataJson' => $value['data_json'] ?? null,
             ];
             $request = Request::create('/', 'GET', $data);
-            if ($value['use_image']) {
+            if ($value['print_settings']['use_image']) {
                 $controller->printSale($request);
             }
-            if (!$value['use_image']) {
+            if (!$value['print_settings']['use_image']) {
                 $controller->printSaleEscPos($request);
             }
         } catch (\Exception $e) {
