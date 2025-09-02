@@ -96,6 +96,7 @@ class CheckDatabaseTableCommand extends Command
 
         return 0;
     }
+
     private function processSalePrint($controller, $value)
     {
         $data = [
@@ -104,10 +105,18 @@ class CheckDatabaseTableCommand extends Command
             'logoBase64' => $value['logo_base64'] ?? null,
             'logo' => $value['logo'] ?? null,
             'openCash' => $value['open_cash'] ?? false,
+            'useImage' => $value['use_image'] ?? false,
+            'dataJson' => $value['data_json'] ?? null,
         ];
         $request = Request::create('/', 'GET', $data);
-        $controller->printSale($request);
+        if ($value['use_image']) {
+            $controller->printSale($request);
+        }
+        if ($value['data_json']) {
+            $controller->printSaleEscPos($request);
+        }
     }
+
     /**
      * Procesar impresión de orden tradicional
      */
