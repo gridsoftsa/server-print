@@ -101,7 +101,6 @@ class CheckDatabaseTableCommand extends Command
 
     private function processSalePrint($controller, $value)
     {
-        Log::info('🧾 Iniciando impresión de venta ESC/POS');
         $data = [
             'printerName' => $value['printer'],
             'base64Image' => $value['image'],
@@ -111,12 +110,18 @@ class CheckDatabaseTableCommand extends Command
             'useImage' => $value['use_image'] ?? false,
             'dataJson' => $value['data_json'] ?? null,
         ];
-        Log::info('🧾 Iniciando impresión de venta ESC/POS', ['request' => $data]);
         $request = Request::create('/', 'GET', $data);
+        Log::info(
+            $value['data_json']
+        );
+        Log::info(
+            $value['use_image']
+        );
         if ($value['use_image']) {
             $controller->printSale($request);
         }
         if ($value['data_json']) {
+            Log::info('🧾 Iniciando impresión de venta ESC/POS');
             $controller->printSaleEscPos($request);
         }
     }
