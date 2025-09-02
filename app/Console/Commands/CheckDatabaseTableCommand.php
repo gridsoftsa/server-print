@@ -64,6 +64,7 @@ class CheckDatabaseTableCommand extends Command
                     continue;
                 }
                 $action = $value['action'];
+                Log::info('value: ' . json_encode($value));
                 $handlers = [
                     'openCashDrawer' => function () use ($controller, $value) {
                         $controller->openCash($value['printer']);
