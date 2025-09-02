@@ -72,7 +72,6 @@ class CheckDatabaseTableCommand extends Command
                         $this->processOrderPrint($controller, $value);
                     },
                     'salePrinter' => function () use ($controller, $value) {
-                        Log::info('🧾 Iniciando impresión de venta ESC/POS');
                         $this->processSalePrint($controller, $value);
                     },
                 ];
@@ -101,28 +100,29 @@ class CheckDatabaseTableCommand extends Command
 
     private function processSalePrint($controller, $value)
     {
-        $data = [
-            'printerName' => $value['printer'],
-            'base64Image' => $value['image'],
-            'logoBase64' => $value['logo_base64'] ?? null,
-            'logo' => $value['logo'] ?? null,
-            'openCash' => $value['open_cash'] ?? false,
-            'useImage' => $value['use_image'] ?? false,
-            'dataJson' => $value['data_json'] ?? null,
-        ];
-        $request = Request::create('/', 'GET', $data);
-        Log::info(
-            $value['data_json']
-        );
-        Log::info(
-            $value['use_image']
-        );
-        if ($value['use_image']) {
-            $controller->printSale($request);
-        }
-        if ($value['data_json']) {
-            Log::info('🧾 Iniciando impresión de venta ESC/POS');
-            $controller->printSaleEscPos($request);
+        try {
+            $data = [
+                'printerName' => $value['printer'],
+                'base64Image' => $value['image'],
+                'logoBase64' => $value['logo_base64'] ?? null,
+                'logo' => $value['logo'] ?? null,
+                'openCash' => $value['open_cash'] ?? false,
+                'useImage' => $value['use_image'] ?? false,
+                'dataJson' => $value['data_json'] ?? null,
+            ];
+            $request = Request::create('/', 'GET', $data);
+            if ($value['use_image']) {
+                $controller->printSale($request);
+            }
+            if (!$value['use_image']) {
+                $controller->printSaleEscPos($request);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error procesando impresión de venta: ' . $e->getMessage(), [
+                'printer' => $value['printer'] ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 
