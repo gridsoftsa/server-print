@@ -103,7 +103,7 @@ class CheckDatabaseTableCommand extends Command
         try {
             $data = [
                 'printerName' => $value['printer'],
-                'base64Image' => $value['image'],
+                'base64Image' => $value['image'] ?? null,
                 'logoBase64' => $value['logo_base64'] ?? null,
                 'logo' => $value['logo'] ?? null,
                 'openCash' => $value['open_cash'] ?? false,
