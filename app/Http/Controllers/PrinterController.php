@@ -718,9 +718,11 @@ class PrinterController extends Controller
                 }
             }
 
-            // FORMAS DE PAGO
+            // FORMAS DE PAGO (mejorado como SaleFormatter.kt)
             $paymentMethods = $saleData['payment_methods'] ?? [];
             if (!empty($paymentMethods)) {
+                Log::info('💳 Procesando métodos de pago', ['count' => count($paymentMethods)]);
+
                 if (count($paymentMethods) == 1) {
                     // Una sola forma de pago
                     $method = $paymentMethods[0];
@@ -730,6 +732,7 @@ class PrinterController extends Controller
                         $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                         $printer->text("Forma de pago: " . $this->normalizeText($methodName) . "\n");
                         $printer->selectPrintMode(); // Reset
+                        Log::info('💳 Método único impreso: ' . $methodName);
                     }
                 } else {
                     // Múltiples formas de pago
@@ -745,9 +748,53 @@ class PrinterController extends Controller
 
                         if (!empty($methodName)) {
                             $printer->text($this->normalizeText($methodName) . ": " . $this->formatCurrency($amount) . "\n");
+                            Log::info('💳 Método múltiple impreso: ' . $methodName . ' - ' . $amount);
                         }
                     }
                 }
+            }
+
+            // ✅ CUOTAS (si existen) - como SaleFormatter.kt
+            $quotas = $saleData['quotas'] ?? [];
+            Log::info('💰 Verificando cuotas', ['count' => count($quotas)]);
+            if (!empty($quotas)) {
+                $printer->feed(1);
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text("Cuotas:\n");
+                $printer->selectPrintMode(); // Reset
+
+                $printer->setJustification(Printer::JUSTIFY_LEFT);
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text("NUMERO   FECHA        VALOR\n");
+                $printer->selectPrintMode(); // Reset
+
+                // Línea separadora
+                $printer->text(str_repeat('-', 48) . "\n");
+
+                foreach ($quotas as $quota) {
+                    $number = $quota['number'] ?? '';
+                    $date = $quota['date'] ?? '';
+                    $value = $quota['value'] ?? 0;
+
+                    $quotaLine = sprintf(
+                        "%-8s %-12s %12s",
+                        $number,
+                        $date,
+                        $this->formatCurrency($value)
+                    );
+                    $printer->text($quotaLine . "\n");
+                    Log::info('💰 Cuota impresa: ' . $quotaLine);
+                }
+
+                $printer->feed(1);
+                // Textos legales para cuotas
+                $printer->text($this->normalizeText("Esta factura constituye título valor según Ley 1231/2008 de Colombia.\n"));
+                $printer->text($this->normalizeText("El cliente se compromete a pagar según fechas acordadas.\n"));
+                $printer->feed(1);
+                $printer->text("Firma: _____________________________\n");
+                $printer->text("ID: ___________________\n");
+                $printer->feed(1);
             }
         } catch (\Exception $e) {
             Log::error('❌ Error en información adicional', ['error' => $e->getMessage()]);
@@ -785,41 +832,53 @@ class PrinterController extends Controller
 
             $printer->feed(1);
 
-            // RESOLUCIÓN DIAN
+            // RESOLUCIÓN DIAN (como SaleFormatter.kt)
             $configResolution = $saleData['config_resolution'] ?? [];
             $note = $configResolution['note'] ?? '';
             if (!empty($note) && $note !== 'null') {
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->text($this->normalizeText($note) . "\n");
                 $printer->feed(1);
+                Log::info('📄 Resolución DIAN impresa: ' . $note);
             }
 
-            // QR CODE CON CUFE (si existe)
-            $invoiceSents = $saleData['invoice_sents'] ?? [];
-            if (!empty($invoiceSents)) {
-                $cufe = $invoiceSents[0]['cufe'] ?? '';
-                if (!empty($cufe) && $cufe !== 'null') {
-                    Log::info('🔗 Generando QR con CUFE: ' . $cufe);
-
-                    // URL exacta como TicketPrint.vue
-                    $qrUrl = "https://catalogo-vpfe.dian.gov.co/User/SearchDocument?documentkey=" . $cufe;
-
-                    // Imprimir etiqueta CUFE centrada
-                    $printer->setJustification(Printer::JUSTIFY_CENTER);
-                    $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                    $printer->text("CUFE:\n");
-                    $printer->selectPrintMode(); // Reset
-
-                    // TODO: Implementar QR Code con biblioteca QR
-                    // Por ahora, imprimir CUFE como texto
-                    $printer->text($cufe . "\n");
-                    $printer->feed(1);
+            // ✅ QR CODE CON CUFE (implementado como SaleFormatter.kt)
+            $cufe = $saleData['cufe'] ?? '';
+            // También buscar en invoice_sents como fallback
+            if (empty($cufe) || $cufe === 'null') {
+                $invoiceSents = $saleData['invoice_sents'] ?? [];
+                if (!empty($invoiceSents)) {
+                    $cufe = $invoiceSents[0]['cufe'] ?? '';
                 }
             }
 
-            // MENSAJE DE AGRADECIMIENTO
+            if (!empty($cufe) && $cufe !== 'null' && strtolower($cufe) !== 'null') {
+                Log::info('🔗 Generando QR con CUFE: ' . $cufe);
+
+                // URL exacta como SaleFormatter.kt y TicketPrint.vue
+                $qrUrl = "https://catalogo-vpfe.dian.gov.co/User/SearchDocument?documentkey=" . $cufe;
+
+                // Imprimir etiqueta CUFE centrada
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text("CUFE:\n");
+                $printer->selectPrintMode(); // Reset
+
+                // ✅ Generar e imprimir QR Code
+                $this->printQRCode($printer, $qrUrl);
+
+                // CUFE como texto (simulando que está al lado como SaleFormatter.kt)
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->text($cufe . "\n");
+                $printer->feed(1);
+                Log::info('✅ QR y CUFE texto impresos');
+            } else {
+                Log::info('⚠️ CUFE no válido para QR: ' . $cufe);
+            }
+
+            // MENSAJE DE AGRADECIMIENTO (normalizado)
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->text("Gracias por tu compra!\n");
+            $printer->text($this->normalizeText("¡Gracias por tu compra!\n"));
 
             // FOOTER GRIDPOS
             $currentYear = date('Y');
@@ -936,6 +995,62 @@ class PrinterController extends Controller
             }
         } catch (\Exception $e) {
             Log::error('❌ Error procesando logo', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 🔗 Imprimir código QR usando mike42/escpos-php nativo
+     * Basado en documentación: qrCode($content, $ec, $size, $model)
+     */
+    private function printQRCode($printer, $qrData)
+    {
+        try {
+            Log::info('🔗 Generando código QR nativo con mike42/escpos-php...');
+
+            // ✅ USAR MÉTODO NATIVO qrCode() de mike42/escpos-php
+            // Parámetros según documentación:
+            // - $content: string - contenido del QR
+            // - $ec: int - nivel de corrección de errores:
+            //   * Printer::QR_ECLEVEL_L (7% recovery) - MÁS COMPACTO
+            //   * Printer::QR_ECLEVEL_M (15% recovery) - BALANCEADO
+            //   * Printer::QR_ECLEVEL_Q (25% recovery) - ALTA CALIDAD
+            //   * Printer::QR_ECLEVEL_H (30% recovery) - MÁXIMA CALIDAD
+            // - $size: int - tamaño del pixel (1-16, por defecto 3)
+            // - $model: int - modelo QR:
+            //   * Printer::QR_MODEL_1 - Versión original
+            //   * Printer::QR_MODEL_2 - Estándar (recomendado)
+            //   * Printer::QR_MICRO - Micro QR (no soportado por todas las impresoras)
+
+            $printer->setJustification(Printer::JUSTIFY_CENTER);
+
+            // ✅ QR optimizado para impresoras térmicas 80mm
+            $printer->qrCode(
+                $qrData,                    // URL DIAN con CUFE
+                Printer::QR_ECLEVEL_L,      // Corrección baja = más compacto
+                4,                          // Tamaño 4 = pequeño pero legible
+                Printer::QR_MODEL_2         // Modelo estándar
+            );
+
+            $printer->feed(1);
+            Log::info('✅ QR Code nativo impreso correctamente con tamaño 4');
+        } catch (\Exception $e) {
+            Log::error('❌ Error generando QR nativo: ' . $e->getMessage());
+
+            // Fallback 1: Intentar con parámetros mínimos
+            try {
+                Log::info('🔄 Intentando QR fallback con parámetros mínimos...');
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->qrCode($qrData); // Solo contenido, usar defaults
+                $printer->feed(1);
+                Log::info('✅ QR fallback exitoso');
+            } catch (\Exception $fallbackException) {
+                Log::error('❌ Error en QR fallback: ' . $fallbackException->getMessage());
+
+                // Fallback final: imprimir URL como texto
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->text("QR: " . substr($qrData, 0, 40) . "...\n");
+                Log::info('📝 QR como texto (fallback final)');
+            }
         }
     }
 
