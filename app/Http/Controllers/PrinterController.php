@@ -326,12 +326,8 @@ class PrinterController extends Controller
             $printerName = $request->input('printerName', 'POS-80');
             $openCash = $request->input('openCash', false);
             $saleData = $request->input('dataJson', $request->all());
-
-            Log::info('🧾 Iniciando impresión de venta ESC/POS', [
-                'printer' => $printerName,
-                'open_cash' => $openCash,
-                'has_data' => !empty($saleData)
-            ]);
+            $company = $request->input('company', null);
+            $logoBase64 = $request->input('logoBase64', null);
 
             // 🖨️ Crear conexión con impresora
             $connector = new WindowsPrintConnector($printerName);
@@ -341,7 +337,7 @@ class PrinterController extends Controller
             $printer->initialize();
 
             // === ENCABEZADO DE EMPRESA ===
-            $this->printCompanyHeader($printer, $saleData);
+            $this->printCompanyHeader($printer, $company, $logoBase64);
 
             // === INFORMACIÓN DE VENTA Y CLIENTE ===
             $this->printSaleInfo($printer, $saleData);
@@ -393,69 +389,23 @@ class PrinterController extends Controller
     /**
      * 🏢 Imprimir encabezado de empresa (centrado como TicketPrint.vue)
      */
-    private function printCompanyHeader($printer, $saleData)
+    private function printCompanyHeader($printer, $company, $logoBase64)
     {
         try {
-            Log::info('🏢 Imprimiendo encabezado de empresa...');
-
-            // ✅ PRIORIDAD 1: Datos de la empresa desde el modelo Company
-            $company = $saleData['company'] ?? null;
-            $subsidiary = $saleData['subsidiary'] ?? [];
-
-            // ✅ USAR COMPANY COMO PRINCIPAL, NO SUBSIDIARY
-            $companyName = '';
-            $companyAddress = '';
-            $companyPhone = '';
-            $companyNit = '';
-
             if ($company) {
                 // ✅ USAR DIRECTAMENTE COMPANY - NO FALLBACK A SUBSIDIARY
                 $companyName = $company['name'] ?? $company['business_name'] ?? '';
                 $companyAddress = $company['address'] ?? '';
                 $companyPhone = $company['phone'] ?? '';
                 $companyNit = $company['nit'] ?? '';
-                Log::info('🏢 Usando SOLO datos del modelo Company (no subsidiary)');
-            } else {
-                // ✅ Solo si NO HAY Company, usar subsidiary
-                $companyName = $subsidiary['name'] ?? '';
-                $companyAddress = $subsidiary['address'] ?? '';
-                $companyPhone = $subsidiary['phone'] ?? '';
-                $companyNit = $saleData['company_id'] ?? '';
-                Log::info('🏢 No hay Company model, usando subsidiary como fallback');
             }
 
-            Log::info('🏢 Datos finales de empresa', [
-                'name' => $companyName,
-                'address' => $companyAddress,
-                'phone' => $companyPhone,
-                'nit' => $companyNit,
-                'has_company_model' => !empty($company)
-            ]);
-
-            // === LOGO DE LA EMPRESA (si existe) ===
-            // ✅ PRIORIDAD: logo_base64 > Company.logo URL
-            $logoBase64 = $saleData['logo_base64'] ?? null;
-            $companyLogoUrl = null;
-
-            if ($company && !empty($company['logo'])) {
-                $companyLogoUrl = $company['logo'];
-                Log::info('🖼️ Logo URL encontrado en Company: ' . $companyLogoUrl);
-            }
-
-            Log::info('🖼️ Debug logo', [
-                'has_logo_base64' => !empty($logoBase64),
-                'logo_base64_length' => $logoBase64 ? strlen($logoBase64) : 0,
-                'logo_base64_preview' => $logoBase64 ? substr($logoBase64, 0, 50) . '...' : 'null',
-                'has_company_logo_url' => !empty($companyLogoUrl),
-                'company_logo_url' => $companyLogoUrl
-            ]);
+            // ✅ Logo Base64
+            $logoBase64 = $logoBase64 ?? null;
 
             if (!empty($logoBase64) && $logoBase64 !== 'null' && trim($logoBase64) !== '') {
                 Log::info('🖼️ Logo Base64 detectado, imprimiendo...');
                 $this->printCompanyLogo($printer, $logoBase64);
-            } elseif (!empty($companyLogoUrl)) {
-                Log::info('🖼️ Logo URL detectado, descargando e imprimiendo...');
-                $this->printCompanyLogoFromUrl($printer, $companyLogoUrl);
             } else {
                 Log::info('⚠️ No se encontró logo válido (ni Base64 ni URL)');
             }
@@ -514,16 +464,6 @@ class PrinterController extends Controller
                 Log::info('📋 Número de venta impreso: ' . $billing);
             }
 
-            // Fecha de venta
-            $createdAt = $saleData['created_at'] ?? '';
-            if (!empty($createdAt)) {
-                $date = date('d/m/Y h:i A', strtotime($createdAt));
-                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                $printer->text("FECHA: " . $date . "\n");
-                $printer->selectPrintMode(); // Reset
-                Log::info('📋 Fecha impresa: ' . $date);
-            }
-
             // Cliente
             $client = $saleData['client'] ?? [];
             if (!empty($client)) {
@@ -551,15 +491,6 @@ class PrinterController extends Controller
                     $printer->text("DOCUMENTO: " . $this->normalizeText($document) . "\n");
                     $printer->selectPrintMode(); // Reset
                     Log::info('📋 Documento impreso: ' . $document);
-                }
-
-                // Teléfono del cliente si existe
-                $phone = $client['phone'] ?? '';
-                if (!empty($phone)) {
-                    $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                    $printer->text("TEL: " . $this->normalizeText($phone) . "\n");
-                    $printer->selectPrintMode(); // Reset
-                    Log::info('📋 Teléfono cliente impreso: ' . $phone);
                 }
             }
 
@@ -780,7 +711,7 @@ class PrinterController extends Controller
                     $printer->text("Formas de pago:\n");
                     $printer->selectPrintMode(); // Reset
 
-                    $printer->setJustification(Printer::JUSTIFY_LEFT);
+                    $printer->setJustification(Printer::JUSTIFY_RIGHT);
                     foreach ($paymentMethods as $method) {
                         $methodName = $method['name'] ?? '';
                         $amount = $method['pivot']['amount'] ?? 0;
@@ -863,7 +794,7 @@ class PrinterController extends Controller
             $createdAt = $saleData['created_at'] ?? '';
             if (!empty($createdAt)) {
                 // Formatear fecha
-                $date = date('d/m/Y h:i:s A', strtotime($createdAt));
+                $date = date('d/m/Y h:i:s A', strtotime($createdAt) - 18000); // UTC-5
                 $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                 $printer->text("Generacion: " . $date . "\n");
                 $printer->selectPrintMode(); // Reset
@@ -921,7 +852,7 @@ class PrinterController extends Controller
             $printer->feed(1);
             // FOOTER GRIDPOS
             $currentYear = date('Y');
-            $printer->text("GridPOS $currentYear - GridSoft S.A.S\n");
+            $printer->text("GridPOS $currentYear\n");
         } catch (\Exception $e) {
             Log::error('❌ Error en pie de página', ['error' => $e->getMessage()]);
         }
