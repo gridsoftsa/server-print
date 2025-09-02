@@ -422,8 +422,6 @@ class PrinterController extends Controller
             if (!empty($companyNit)) {
                 $printer->text("NIT: " . $this->normalizeText($companyNit) . "\n");
             }
-
-            $printer->feed(1);
         } catch (\Exception $e) {
             Log::error('❌ Error en encabezado de empresa', ['error' => $e->getMessage()]);
         }
