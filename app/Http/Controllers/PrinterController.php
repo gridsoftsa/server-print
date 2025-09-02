@@ -398,16 +398,26 @@ class PrinterController extends Controller
         try {
             Log::info('🏢 Imprimiendo encabezado de empresa...');
 
-            // Obtener información de la empresa desde subsidiary
+            // Obtener información de la empresa desde subsidiary (sucursal)
             $subsidiary = $saleData['subsidiary'] ?? [];
             $companyName = $subsidiary['name'] ?? '';
             $companyAddress = $subsidiary['address'] ?? '';
             $companyPhone = $subsidiary['phone'] ?? '';
-            $companyNit = $saleData['company_id'] ?? ''; // NIT desde company_id o usar otro campo si está disponible
+
+            // NIT desde company_id (si está disponible)
+            $companyId = $saleData['company_id'] ?? '';
+
+            Log::info('🏢 Datos de empresa obtenidos', [
+                'name' => $companyName,
+                'address' => $companyAddress,
+                'phone' => $companyPhone,
+                'company_id' => $companyId
+            ]);
 
             // === LOGO DE LA EMPRESA (si existe) ===
             $logoBase64 = $saleData['logo_base64'] ?? null;
             if (!empty($logoBase64) && $logoBase64 !== 'null') {
+                Log::info('🖼️ Logo detectado, imprimiendo...');
                 $this->printCompanyLogo($printer, $logoBase64);
             }
 
@@ -419,21 +429,25 @@ class PrinterController extends Controller
                 $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
                 $printer->text(strtoupper($this->normalizeText($companyName)) . "\n");
                 $printer->selectPrintMode(); // Reset
+                Log::info('🏢 Nombre empresa impreso: ' . $companyName);
             }
 
             // Dirección (centrada)
             if (!empty($companyAddress)) {
                 $printer->text("DIRECCION: " . strtoupper($this->normalizeText($companyAddress)) . "\n");
+                Log::info('🏢 Dirección impresa: ' . $companyAddress);
             }
 
             // Teléfono/Celular (centrado)
             if (!empty($companyPhone)) {
                 $printer->text("CELULAR: " . $this->normalizeText($companyPhone) . "\n");
+                Log::info('🏢 Teléfono impreso: ' . $companyPhone);
             }
 
-            // NIT (centrado) - Usar el NIT real si está disponible
-            if (!empty($companyNit)) {
-                $printer->text("NIT: " . $this->normalizeText($companyNit) . "\n");
+            // NIT (centrado) - Usar el company_id como referencia
+            if (!empty($companyId)) {
+                $printer->text("NIT: " . $this->normalizeText($companyId) . "\n");
+                Log::info('🏢 NIT impreso: ' . $companyId);
             }
 
             $printer->feed(1);
@@ -452,12 +466,23 @@ class PrinterController extends Controller
 
             $printer->setJustification(Printer::JUSTIFY_RIGHT);
 
-            // Número de venta
+            // Número de venta/factura
             $billing = $saleData['billing'] ?? '';
             if (!empty($billing)) {
                 $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                 $printer->text("VENTA: " . $this->normalizeText($billing) . "\n");
                 $printer->selectPrintMode(); // Reset
+                Log::info('📋 Número de venta impreso: ' . $billing);
+            }
+
+            // Fecha de venta
+            $createdAt = $saleData['created_at'] ?? '';
+            if (!empty($createdAt)) {
+                $date = date('d/m/Y h:i A', strtotime($createdAt));
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text("FECHA: " . $date . "\n");
+                $printer->selectPrintMode(); // Reset
+                Log::info('📋 Fecha impresa: ' . $date);
             }
 
             // Cliente
@@ -467,10 +492,17 @@ class PrinterController extends Controller
                 $firstSurname = $client['first_surname'] ?? '';
                 $clientName = trim($firstName . ' ' . $firstSurname);
 
+                Log::info('📋 Datos de cliente obtenidos', [
+                    'first_name' => $firstName,
+                    'first_surname' => $firstSurname,
+                    'full_name' => $clientName
+                ]);
+
                 if (!empty($clientName)) {
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                     $printer->text("CLIENTE: " . strtoupper($this->normalizeText($clientName)) . "\n");
                     $printer->selectPrintMode(); // Reset
+                    Log::info('📋 Cliente impreso: ' . $clientName);
                 }
 
                 // Documento
@@ -479,6 +511,16 @@ class PrinterController extends Controller
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                     $printer->text("DOCUMENTO: " . $this->normalizeText($document) . "\n");
                     $printer->selectPrintMode(); // Reset
+                    Log::info('📋 Documento impreso: ' . $document);
+                }
+
+                // Teléfono del cliente si existe
+                $phone = $client['phone'] ?? '';
+                if (!empty($phone)) {
+                    $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                    $printer->text("TEL: " . $this->normalizeText($phone) . "\n");
+                    $printer->selectPrintMode(); // Reset
+                    Log::info('📋 Teléfono cliente impreso: ' . $phone);
                 }
             }
 
