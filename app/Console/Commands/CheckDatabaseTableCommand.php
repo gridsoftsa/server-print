@@ -36,6 +36,7 @@ class CheckDatabaseTableCommand extends Command
         $controller = app(PrinterController::class);
         $url = "https://$api.gridpos.co/print-queue";
 
+        Log::info('🔍 URL: ' . $url);
         $response = Http::withHeaders([
             'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
             'X-Client-Slug' => $clientSlug,
@@ -71,6 +72,7 @@ class CheckDatabaseTableCommand extends Command
                         $this->processOrderPrint($controller, $value);
                     },
                     'salePrinter' => function () use ($controller, $value) {
+                        Log::info('🧾 Iniciando impresión de venta ESC/POS');
                         $this->processSalePrint($controller, $value);
                     },
                 ];
@@ -99,6 +101,7 @@ class CheckDatabaseTableCommand extends Command
 
     private function processSalePrint($controller, $value)
     {
+        Log::info('🧾 Iniciando impresión de venta ESC/POS');
         $data = [
             'printerName' => $value['printer'],
             'base64Image' => $value['image'],
