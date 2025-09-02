@@ -365,9 +365,6 @@ class PrinterController extends Controller
             }
 
             $printer->close();
-
-            Log::info('✅ Venta impresa correctamente con ESC/POS');
-
             return response()->json([
                 'message' => 'Venta impresa correctamente con ESC/POS',
                 'success' => true
@@ -777,8 +774,6 @@ class PrinterController extends Controller
     private function printFooter($printer, $saleData)
     {
         try {
-            Log::info('📄 Imprimiendo pie de página...');
-
             $printer->setJustification(Printer::JUSTIFY_RIGHT);
 
             // ATENDIDO POR
@@ -822,26 +817,27 @@ class PrinterController extends Controller
                 }
             }
 
-            /* if (!empty($cufe) && $cufe !== 'null' && strtolower($cufe) !== 'null') { */
-            Log::info('🔗 Generando QR con CUFE: ' . $cufe);
-            $cufe = 'aesrqwersdfsdfsdfsdfsdfsdfsdf';
+            if (!empty($cufe) && $cufe !== 'null' && strtolower($cufe) !== 'null') {
+                // URL exacta como SaleFormatter.kt y TicketPrint.vue
+                $qrUrl = "https://catalogo-vpfe.dian.gov.co/User/SearchDocument?documentkey=" . $cufe;
 
-            // URL exacta como SaleFormatter.kt y TicketPrint.vue
-            $qrUrl = "https://catalogo-vpfe.dian.gov.co/User/SearchDocument?documentkey=" . $cufe;
+                // Imprimir etiqueta CUFE centrada
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text("CUFE:\n");
+                $printer->selectPrintMode(); // Reset
 
-            // Imprimir etiqueta CUFE centrada
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-            $printer->text("CUFE:\n");
-            $printer->selectPrintMode(); // Reset
+                // ✅ Generar e imprimir QR Code
+                $this->printQRCode($printer, $qrUrl);
 
-            // ✅ LAYOUT SIMULADO: CUFE (izq) + QR (der)
-            $this->printCufeWithQR($printer, $cufe, $qrUrl);
-
-            Log::info('✅ CUFE texto (izq) y QR (der) impresos en layout simulado');
-            /* } else {
+                // CUFE como texto (simulando que está al lado como SaleFormatter.kt)
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->text($cufe . "\n");
+                $printer->feed(1);
+                Log::info('✅ QR y CUFE texto impresos');
+            } else {
                 Log::info('⚠️ CUFE no válido para QR: ' . $cufe);
-            } */
+            }
 
             // MENSAJE DE AGRADECIMIENTO (normalizado)
             $printer->setJustification(Printer::JUSTIFY_CENTER);
@@ -1009,54 +1005,6 @@ class PrinterController extends Controller
     }
 
     /**
-     * 🔗📄 Imprimir CUFE (izq) y QR (der) en layout simulado
-     */
-    private function printCufeWithQR($printer, $cufe, $qrUrl)
-    {
-        try {
-            Log::info('🔗📄 Imprimiendo CUFE y QR en layout simulado...');
-
-            // ✅ OPCIÓN 1: CUFE texto a la izquierda
-            $printer->setJustification(Printer::JUSTIFY_LEFT);
-            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-
-            // Truncar CUFE si es muy largo para papel 80mm
-            $maxCufeLength = 25; // Máximo para dejar espacio al QR
-            $cufeDisplay = strlen($cufe) > $maxCufeLength ? substr($cufe, 0, $maxCufeLength) . '...' : $cufe;
-
-            $printer->text("CUFE: " . $cufeDisplay . "\n");
-            $printer->selectPrintMode(); // Reset
-
-            // ✅ OPCIÓN 2: QR pequeño centrado (simulando derecha)
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->feed(1); // Pequeño espacio
-
-            // QR más pequeño para mejor proporción visual
-            $printer->qrCode(
-                $qrUrl,                     // URL DIAN con CUFE
-                Printer::QR_ECLEVEL_L,      // Corrección baja = más compacto
-                3,                          // Tamaño 3 = pequeño
-                Printer::QR_MODEL_2         // Modelo estándar
-            );
-
-            // ✅ CUFE completo debajo del QR (como referencia)
-            $printer->feed(1);
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->text($cufe . "\n");
-
-            $printer->feed(1);
-            Log::info('✅ Layout CUFE+QR simulado completado');
-        } catch (\Exception $e) {
-            Log::error('❌ Error en layout CUFE+QR', ['error' => $e->getMessage()]);
-
-            // Fallback: método tradicional
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->text("CUFE: " . $cufe . "\n");
-            $this->printQRCode($printer, $qrUrl);
-        }
-    }
-
-    /**
      * 🔗 Imprimir código QR usando mike42/escpos-php nativo
      * Basado en documentación: qrCode($content, $ec, $size, $model)
      */
@@ -1081,33 +1029,27 @@ class PrinterController extends Controller
 
             $printer->setJustification(Printer::JUSTIFY_CENTER);
 
-            // ✅ QR pequeño optimizado para layout lado a lado
+            // ✅ QR optimizado para impresoras térmicas 80mm
             $printer->qrCode(
                 $qrData,                    // URL DIAN con CUFE
                 Printer::QR_ECLEVEL_L,      // Corrección baja = más compacto
-                3,                          // Tamaño 3 = más pequeño para simular "lado derecho"
+                4,                          // Tamaño 4 = pequeño pero legible
                 Printer::QR_MODEL_2         // Modelo estándar
             );
 
             $printer->feed(1);
-            Log::info('✅ QR Code nativo impreso correctamente con tamaño 4');
         } catch (\Exception $e) {
-            Log::error('❌ Error generando QR nativo: ' . $e->getMessage());
-
             // Fallback 1: Intentar con parámetros mínimos
             try {
-                Log::info('🔄 Intentando QR fallback con parámetros mínimos...');
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->qrCode($qrData); // Solo contenido, usar defaults
                 $printer->feed(1);
-                Log::info('✅ QR fallback exitoso');
             } catch (\Exception $fallbackException) {
                 Log::error('❌ Error en QR fallback: ' . $fallbackException->getMessage());
 
                 // Fallback final: imprimir URL como texto
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->text("QR: " . substr($qrData, 0, 40) . "...\n");
-                Log::info('📝 QR como texto (fallback final)');
             }
         }
     }
