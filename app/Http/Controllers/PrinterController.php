@@ -402,39 +402,26 @@ class PrinterController extends Controller
             $company = $saleData['company'] ?? null;
             $subsidiary = $saleData['subsidiary'] ?? [];
 
-            // ✅ Usar datos de Company como principal, subsidiary como fallback
+            // ✅ USAR COMPANY COMO PRINCIPAL, NO SUBSIDIARY
             $companyName = '';
             $companyAddress = '';
             $companyPhone = '';
             $companyNit = '';
 
             if ($company) {
-                // Datos principales desde Company model
+                // ✅ USAR DIRECTAMENTE COMPANY - NO FALLBACK A SUBSIDIARY
                 $companyName = $company['name'] ?? $company['business_name'] ?? '';
                 $companyAddress = $company['address'] ?? '';
                 $companyPhone = $company['phone'] ?? '';
                 $companyNit = $company['nit'] ?? '';
-                Log::info('🏢 Usando datos del modelo Company');
-            }
-
-            // ✅ Fallback a subsidiary si Company no tiene datos
-            if (empty($companyName)) {
+                Log::info('🏢 Usando SOLO datos del modelo Company (no subsidiary)');
+            } else {
+                // ✅ Solo si NO HAY Company, usar subsidiary
                 $companyName = $subsidiary['name'] ?? '';
-                Log::info('🏢 Fallback: nombre desde subsidiary');
-            }
-            if (empty($companyAddress)) {
                 $companyAddress = $subsidiary['address'] ?? '';
-                Log::info('🏢 Fallback: dirección desde subsidiary');
-            }
-            if (empty($companyPhone)) {
                 $companyPhone = $subsidiary['phone'] ?? '';
-                Log::info('🏢 Fallback: teléfono desde subsidiary');
-            }
-
-            // ✅ Fallback final para NIT desde company_id
-            if (empty($companyNit)) {
                 $companyNit = $saleData['company_id'] ?? '';
-                Log::info('🏢 Fallback: NIT desde company_id');
+                Log::info('🏢 No hay Company model, usando subsidiary como fallback');
             }
 
             Log::info('🏢 Datos finales de empresa', [
@@ -455,14 +442,22 @@ class PrinterController extends Controller
                 Log::info('🖼️ Logo URL encontrado en Company: ' . $companyLogoUrl);
             }
 
-            if (!empty($logoBase64) && $logoBase64 !== 'null') {
+            Log::info('🖼️ Debug logo', [
+                'has_logo_base64' => !empty($logoBase64),
+                'logo_base64_length' => $logoBase64 ? strlen($logoBase64) : 0,
+                'logo_base64_preview' => $logoBase64 ? substr($logoBase64, 0, 50) . '...' : 'null',
+                'has_company_logo_url' => !empty($companyLogoUrl),
+                'company_logo_url' => $companyLogoUrl
+            ]);
+
+            if (!empty($logoBase64) && $logoBase64 !== 'null' && trim($logoBase64) !== '') {
                 Log::info('🖼️ Logo Base64 detectado, imprimiendo...');
                 $this->printCompanyLogo($printer, $logoBase64);
             } elseif (!empty($companyLogoUrl)) {
                 Log::info('🖼️ Logo URL detectado, descargando e imprimiendo...');
                 $this->printCompanyLogoFromUrl($printer, $companyLogoUrl);
             } else {
-                Log::info('⚠️ No se encontró logo (ni Base64 ni URL)');
+                Log::info('⚠️ No se encontró logo válido (ni Base64 ni URL)');
             }
 
             // === INFORMACIÓN DE EMPRESA CENTRADA ===
@@ -1003,42 +998,85 @@ class PrinterController extends Controller
     private function printCompanyLogo($printer, $logoBase64)
     {
         try {
-            Log::info('🖼️ Procesando logo Base64...');
+            Log::info('🖼️ Procesando logo Base64...', [
+                'original_length' => strlen($logoBase64),
+                'starts_with_data' => strpos($logoBase64, 'data:image') === 0
+            ]);
 
-            // Limpiar el prefijo data:image si existe
+            // ✅ Limpiar el prefijo data:image si existe
             $cleanBase64 = $logoBase64;
             if (strpos($logoBase64, 'data:image') === 0) {
                 $commaPos = strpos($logoBase64, ',');
                 if ($commaPos !== false) {
                     $cleanBase64 = substr($logoBase64, $commaPos + 1);
+                    Log::info('🖼️ Prefijo data:image removido');
+                } else {
+                    Log::warning('⚠️ Prefijo data:image encontrado pero sin coma separadora');
                 }
             }
 
-            // Decodificar Base64
-            $logoData = base64_decode($cleanBase64);
-            if ($logoData === false) {
-                Log::warning('⚠️ No se pudo decodificar el logo Base64');
+            // ✅ Limpiar espacios y caracteres extra
+            $cleanBase64 = trim($cleanBase64);
+            $cleanBase64 = str_replace([' ', '\n', '\r', '\t'], '', $cleanBase64);
+
+            Log::info('🖼️ Base64 limpio', [
+                'clean_length' => strlen($cleanBase64),
+                'preview' => substr($cleanBase64, 0, 50) . '...'
+            ]);
+
+            // ✅ Decodificar Base64
+            $logoData = base64_decode($cleanBase64, true); // strict mode
+            if ($logoData === false || empty($logoData)) {
+                Log::error('❌ No se pudo decodificar el logo Base64', [
+                    'clean_base64_length' => strlen($cleanBase64),
+                    'is_valid_base64' => base64_encode(base64_decode($cleanBase64, true)) === $cleanBase64
+                ]);
                 return;
             }
 
-            // Guardar temporalmente
-            $tempPath = storage_path('app/public/temp_company_logo.png');
-            file_put_contents($tempPath, $logoData);
+            Log::info('🖼️ Base64 decodificado exitosamente', [
+                'decoded_size_bytes' => strlen($logoData)
+            ]);
 
-            // Imprimir logo
-            if (file_exists($tempPath)) {
+            // ✅ Guardar temporalmente con timestamp para evitar conflictos
+            $timestamp = time();
+            $tempPath = storage_path("app/public/temp_company_logo_{$timestamp}.png");
+            $bytesWritten = file_put_contents($tempPath, $logoData);
+
+            Log::info('🖼️ Archivo temporal creado', [
+                'path' => $tempPath,
+                'bytes_written' => $bytesWritten,
+                'file_exists' => file_exists($tempPath)
+            ]);
+
+            // ✅ Imprimir logo
+            if (file_exists($tempPath) && filesize($tempPath) > 0) {
                 $imgLogo = EscposImage::load($tempPath);
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->bitImage($imgLogo);
                 $printer->feed(1);
 
-                // Limpiar archivo temporal
-                @unlink($tempPath);
-
                 Log::info('✅ Logo Base64 impreso correctamente');
+            } else {
+                Log::error('❌ Archivo temporal no válido o vacío');
+            }
+
+            // ✅ Limpiar archivo temporal
+            if (file_exists($tempPath)) {
+                @unlink($tempPath);
+                Log::info('🗑️ Archivo temporal eliminado');
             }
         } catch (\Exception $e) {
-            Log::error('❌ Error procesando logo Base64', ['error' => $e->getMessage()]);
+            Log::error('❌ Error procesando logo Base64', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+
+            // Limpiar archivo temporal en caso de error
+            if (isset($tempPath) && file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
         }
     }
 
