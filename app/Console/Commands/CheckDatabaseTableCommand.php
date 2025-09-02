@@ -110,21 +110,25 @@ class CheckDatabaseTableCommand extends Command
                 'company' => $value['company'] ?? null,
             ];
             $request = Request::create('/', 'GET', $data);
-            // Si viene imagen pero no viene use_image, usar imagen por defecto
-            if (!isset($value['print_settings']['use_image']) && !empty($value['image'])) {
+            // ✅ LÓGICA PRINCIPAL: Si NO hay logo_base64, usar printSale (imagen)
+            if (empty($value['logo_base64']) || $value['logo_base64'] === null) {
+                Log::info('🖼️ Sin logo_base64 - Usando impresión con imagen (printSale)');
                 $controller->printSale($request);
             }
-            // Si use_image es true y viene imagen, usar imagen
-            else if ($value['print_settings']['use_image'] && !empty($value['image'])) {
-                $controller->printSale($request);
-            }
-            // Si use_image es false y viene data_json, usar ESC/POS
+            // ✅ Si HAY logo_base64 + data_json Y use_image es false, usar ESC/POS
             else if (
-                isset($value['print_settings']['use_image'])
-                && !$value['print_settings']['use_image']
-                && !empty($value['data_json'])
+                !empty($value['logo_base64']) &&
+                !empty($value['data_json']) &&
+                isset($value['print_settings']['use_image']) &&
+                !$value['print_settings']['use_image']
             ) {
+                Log::info('📄 Con logo_base64 + data_json + use_image=false - Usando ESC/POS (printSaleEscPos)');
                 $controller->printSaleEscPos($request);
+            }
+            // ✅ FALLBACK: Si hay logo_base64 pero use_image es true o no está definido, usar imagen
+            else {
+                Log::info('🖼️ Fallback - Usando impresión con imagen (printSale)');
+                $controller->printSale($request);
             }
         } catch (\Exception $e) {
             Log::error('Error procesando impresión de venta: ' . $e->getMessage(), [
