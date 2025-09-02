@@ -35,8 +35,6 @@ class CheckDatabaseTableCommand extends Command
         $clientSlug = env('API_URL_POS');
         $controller = app(PrinterController::class);
         $url = "https://$api.gridpos.co/print-queue";
-
-        Log::info('🔍 URL: ' . $url);
         $response = Http::withHeaders([
             'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
             'X-Client-Slug' => $clientSlug,
@@ -64,7 +62,6 @@ class CheckDatabaseTableCommand extends Command
                     continue;
                 }
                 $action = $value['action'];
-                Log::info('value: ' . json_encode($value));
                 $handlers = [
                     'openCashDrawer' => function () use ($controller, $value) {
                         $controller->openCash($value['printer']);

@@ -360,7 +360,6 @@ class PrinterController extends Controller
 
             // === ABRIR CAJA SI ES NECESARIO ===
             if ($openCash) {
-                Log::info('💰 Abriendo caja registradora...');
                 $printer->pulse();
             }
 
@@ -370,11 +369,6 @@ class PrinterController extends Controller
                 'success' => true
             ], 200);
         } catch (\Exception $e) {
-            Log::error('❌ Error imprimiendo venta ESC/POS', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Error al imprimir venta con ESC/POS',
                 'error' => $e->getMessage(),
@@ -401,10 +395,7 @@ class PrinterController extends Controller
             $logoBase64 = $logoBase64 ?? null;
 
             if (!empty($logoBase64) && $logoBase64 !== 'null' && trim($logoBase64) !== '') {
-                Log::info('🖼️ Logo Base64 detectado, imprimiendo...');
                 $this->printCompanyLogo($printer, $logoBase64);
-            } else {
-                Log::info('⚠️ No se encontró logo válido (ni Base64 ni URL)');
             }
 
             // === INFORMACIÓN DE EMPRESA CENTRADA ===
@@ -415,25 +406,21 @@ class PrinterController extends Controller
                 $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
                 $printer->text(strtoupper($this->normalizeText($companyName)) . "\n");
                 $printer->selectPrintMode(); // Reset
-                Log::info('🏢 Nombre empresa impreso: ' . $companyName);
             }
 
             // ✅ Dirección (centrada)
             if (!empty($companyAddress)) {
                 $printer->text("DIRECCION: " . strtoupper($this->normalizeText($companyAddress)) . "\n");
-                Log::info('🏢 Dirección impresa: ' . $companyAddress);
             }
 
             // ✅ Teléfono/Celular (centrado)
             if (!empty($companyPhone)) {
                 $printer->text("CELULAR: " . $this->normalizeText($companyPhone) . "\n");
-                Log::info('🏢 Teléfono impreso: ' . $companyPhone);
             }
 
             // ✅ NIT (centrado) - Prioridad: Company.nit > company_id
             if (!empty($companyNit)) {
                 $printer->text("NIT: " . $this->normalizeText($companyNit) . "\n");
-                Log::info('🏢 NIT impreso: ' . $companyNit);
             }
 
             $printer->feed(1);
@@ -448,8 +435,6 @@ class PrinterController extends Controller
     private function printSaleInfo($printer, $saleData)
     {
         try {
-            Log::info('📋 Imprimiendo información de venta...');
-
             $printer->setJustification(Printer::JUSTIFY_RIGHT);
 
             // Número de venta/factura
@@ -458,7 +443,6 @@ class PrinterController extends Controller
                 $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                 $printer->text("VENTA: " . $this->normalizeText($billing) . "\n");
                 $printer->selectPrintMode(); // Reset
-                Log::info('📋 Número de venta impreso: ' . $billing);
             }
 
             // Cliente
@@ -468,17 +452,10 @@ class PrinterController extends Controller
                 $firstSurname = $client['first_surname'] ?? '';
                 $clientName = trim($firstName . ' ' . $firstSurname);
 
-                Log::info('📋 Datos de cliente obtenidos', [
-                    'first_name' => $firstName,
-                    'first_surname' => $firstSurname,
-                    'full_name' => $clientName
-                ]);
-
                 if (!empty($clientName)) {
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                     $printer->text("CLIENTE: " . strtoupper($this->normalizeText($clientName)) . "\n");
                     $printer->selectPrintMode(); // Reset
-                    Log::info('📋 Cliente impreso: ' . $clientName);
                 }
 
                 // Documento
@@ -487,7 +464,6 @@ class PrinterController extends Controller
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                     $printer->text("DOCUMENTO: " . $this->normalizeText($document) . "\n");
                     $printer->selectPrintMode(); // Reset
-                    Log::info('📋 Documento impreso: ' . $document);
                 }
             }
 
@@ -503,15 +479,10 @@ class PrinterController extends Controller
     private function printProducts($printer, $saleData)
     {
         try {
-            Log::info('🛒 Imprimiendo productos...');
-
             $itemsDetail = $saleData['items_detail'] ?? [];
             if (empty($itemsDetail)) {
-                Log::warning('⚠️ No se encontraron productos en items_detail');
                 return;
             }
-
-            Log::info('🛒 Encontrados ' . count($itemsDetail) . ' productos');
 
             // Encabezado de productos
             $printer->setJustification(Printer::JUSTIFY_LEFT);
@@ -563,8 +534,6 @@ class PrinterController extends Controller
     private function printTotals($printer, $saleData)
     {
         try {
-            Log::info('💰 Imprimiendo totales...');
-
             $printer->setJustification(Printer::JUSTIFY_LEFT);
 
             // Obtener valores de totales
@@ -573,14 +542,6 @@ class PrinterController extends Controller
             $totalValue = $saleData['total_value'] ?? 0;
             $totalTip = $saleData['total_tip'] ?? 0;
             $discount = $saleData['discount'] ?? 0;
-
-            Log::info('💰 Valores obtenidos', [
-                'sub_total' => $subTotal,
-                'total_tax_value' => $totalTaxValue,
-                'total_value' => $totalValue,
-                'total_tip' => $totalTip,
-                'discount' => $discount
-            ]);
 
             // SUBTOTAL (si es diferente del total o hay propina)
             if (($subTotal - $totalTaxValue != $totalValue) || $totalTip > 0) {
@@ -635,8 +596,6 @@ class PrinterController extends Controller
     private function printAdditionalInfo($printer, $saleData)
     {
         try {
-            Log::info('ℹ️ Imprimiendo información adicional...');
-
             $printer->setJustification(Printer::JUSTIFY_LEFT);
 
             // OBSERVACIONES DE LA VENTA
@@ -688,7 +647,6 @@ class PrinterController extends Controller
             // FORMAS DE PAGO (mejorado como SaleFormatter.kt)
             $paymentMethods = $saleData['payment_methods'] ?? [];
             if (!empty($paymentMethods)) {
-                Log::info('💳 Procesando métodos de pago', ['count' => count($paymentMethods)]);
 
                 if (count($paymentMethods) == 1) {
                     // Una sola forma de pago
@@ -699,7 +657,6 @@ class PrinterController extends Controller
                         $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                         $printer->text("Forma de pago: " . $this->normalizeText($methodName) . "\n");
                         $printer->selectPrintMode(); // Reset
-                        Log::info('💳 Método único impreso: ' . $methodName);
                     }
                 } else {
                     // Múltiples formas de pago
@@ -715,7 +672,6 @@ class PrinterController extends Controller
 
                         if (!empty($methodName)) {
                             $printer->text($this->normalizeText($methodName) . ": " . $this->formatCurrency($amount) . "\n");
-                            Log::info('💳 Método múltiple impreso: ' . $methodName . ' - ' . $amount);
                         }
                     }
                 }
@@ -723,7 +679,6 @@ class PrinterController extends Controller
 
             // ✅ CUOTAS (si existen) - como SaleFormatter.kt
             $quotas = $saleData['quotas'] ?? [];
-            Log::info('💰 Verificando cuotas', ['count' => count($quotas)]);
             if (!empty($quotas)) {
                 $printer->feed(1);
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
@@ -751,7 +706,6 @@ class PrinterController extends Controller
                         $this->formatCurrency($value)
                     );
                     $printer->text($quotaLine . "\n");
-                    Log::info('💰 Cuota impresa: ' . $quotaLine);
                 }
 
                 $printer->feed(1);
@@ -804,7 +758,6 @@ class PrinterController extends Controller
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->text($this->normalizeText($note) . "\n");
                 $printer->feed(1);
-                Log::info('📄 Resolución DIAN impresa: ' . $note);
             }
 
             // ✅ QR CODE CON CUFE (implementado como SaleFormatter.kt)
@@ -834,9 +787,6 @@ class PrinterController extends Controller
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->text($cufe . "\n");
                 $printer->feed(1);
-                Log::info('✅ QR y CUFE texto impresos');
-            } else {
-                Log::info('⚠️ CUFE no válido para QR: ' . $cufe);
             }
 
             // MENSAJE DE AGRADECIMIENTO (normalizado)
@@ -922,18 +872,12 @@ class PrinterController extends Controller
     private function printCompanyLogo($printer, $logoBase64)
     {
         try {
-            Log::info('🖼️ Procesando logo Base64...', [
-                'original_length' => strlen($logoBase64),
-                'starts_with_data' => strpos($logoBase64, 'data:image') === 0
-            ]);
-
             // ✅ Limpiar el prefijo data:image si existe
             $cleanBase64 = $logoBase64;
             if (strpos($logoBase64, 'data:image') === 0) {
                 $commaPos = strpos($logoBase64, ',');
                 if ($commaPos !== false) {
                     $cleanBase64 = substr($logoBase64, $commaPos + 1);
-                    Log::info('🖼️ Prefijo data:image removido');
                 } else {
                     Log::warning('⚠️ Prefijo data:image encontrado pero sin coma separadora');
                 }
@@ -942,11 +886,6 @@ class PrinterController extends Controller
             // ✅ Limpiar espacios y caracteres extra
             $cleanBase64 = trim($cleanBase64);
             $cleanBase64 = str_replace([' ', '\n', '\r', '\t'], '', $cleanBase64);
-
-            Log::info('🖼️ Base64 limpio', [
-                'clean_length' => strlen($cleanBase64),
-                'preview' => substr($cleanBase64, 0, 50) . '...'
-            ]);
 
             // ✅ Decodificar Base64
             $logoData = base64_decode($cleanBase64, true); // strict mode
@@ -958,20 +897,10 @@ class PrinterController extends Controller
                 return;
             }
 
-            Log::info('🖼️ Base64 decodificado exitosamente', [
-                'decoded_size_bytes' => strlen($logoData)
-            ]);
-
             // ✅ Guardar temporalmente con timestamp para evitar conflictos
             $timestamp = time();
             $tempPath = storage_path("app/public/temp_company_logo_{$timestamp}.png");
             $bytesWritten = file_put_contents($tempPath, $logoData);
-
-            Log::info('🖼️ Archivo temporal creado', [
-                'path' => $tempPath,
-                'bytes_written' => $bytesWritten,
-                'file_exists' => file_exists($tempPath)
-            ]);
 
             // ✅ Imprimir logo
             if (file_exists($tempPath) && filesize($tempPath) > 0) {
@@ -979,8 +908,6 @@ class PrinterController extends Controller
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->bitImage($imgLogo);
                 $printer->feed(1);
-
-                Log::info('✅ Logo Base64 impreso correctamente');
             } else {
                 Log::error('❌ Archivo temporal no válido o vacío');
             }
@@ -988,7 +915,6 @@ class PrinterController extends Controller
             // ✅ Limpiar archivo temporal
             if (file_exists($tempPath)) {
                 @unlink($tempPath);
-                Log::info('🗑️ Archivo temporal eliminado');
             }
         } catch (\Exception $e) {
             Log::error('❌ Error procesando logo Base64', [
@@ -1011,8 +937,6 @@ class PrinterController extends Controller
     private function printQRCode($printer, $qrData)
     {
         try {
-            Log::info('🔗 Generando código QR nativo con mike42/escpos-php...');
-
             // ✅ USAR MÉTODO NATIVO qrCode() de mike42/escpos-php
             // Parámetros según documentación:
             // - $content: string - contenido del QR
@@ -1045,8 +969,6 @@ class PrinterController extends Controller
                 $printer->qrCode($qrData); // Solo contenido, usar defaults
                 $printer->feed(1);
             } catch (\Exception $fallbackException) {
-                Log::error('❌ Error en QR fallback: ' . $fallbackException->getMessage());
-
                 // Fallback final: imprimir URL como texto
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->text("QR: " . substr($qrData, 0, 40) . "...\n");
