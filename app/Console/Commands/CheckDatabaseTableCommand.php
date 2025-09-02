@@ -110,6 +110,7 @@ class CheckDatabaseTableCommand extends Command
                 'openCash' => $value['open_cash'] ?? false,
                 'useImage' => $value['print_settings']['use_image'] ?? false,
                 'dataJson' => $value['data_json'] ?? null,
+                'company' => $value['company'] ?? null,
             ];
             $request = Request::create('/', 'GET', $data);
             if ($value['print_settings']['use_image']) {
