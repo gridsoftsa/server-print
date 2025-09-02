@@ -326,7 +326,7 @@ class PrinterController extends Controller
             ini_set('memory_limit', '1024M');
             $printerName = $request->input('printerName', 'POS-80');
             $openCash = $request->input('openCash', false);
-            $saleData = $request->input('data_json', $request->all());
+            $saleData = $request->input('dataJson', $request->all());
 
             Log::info('🧾 Iniciando impresión de venta ESC/POS', [
                 'printer' => $printerName,
