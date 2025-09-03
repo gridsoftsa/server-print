@@ -15,7 +15,12 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // ✅ POLLING RÁPIDO: Cada segundo para máxima velocidad
+        $schedule->command('db:check-table')
+            ->everySecond()
+            ->withoutOverlapping() // Evitar ejecuciones simultáneas
+            ->runInBackground() // Ejecutar en background
+            ->appendOutputTo(storage_path('logs/scheduler.log')); // Log de scheduler
     }
 
     /**
@@ -25,7 +30,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }
