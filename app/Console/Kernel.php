@@ -16,11 +16,11 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // ✅ POLLING RÁPIDO: Cada segundo para máxima velocidad
-        $schedule->command('db:check-table')
+        /* $schedule->command('db:check-table')
             ->everySecond()
             ->withoutOverlapping() // Evitar ejecuciones simultáneas
             ->runInBackground() // Ejecutar en background
-            ->appendOutputTo(storage_path('logs/scheduler.log')); // Log de scheduler
+            ->appendOutputTo(storage_path('logs/scheduler.log')); // Log de scheduler */
     }
 
     /**
