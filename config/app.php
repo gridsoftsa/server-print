@@ -212,4 +212,23 @@ return [
         // 'ExampleClass' => App\Example\ExampleClass::class,
     ])->toArray(),
 
+    /*
+    |--------------------------------------------------------------------------
+    | WebSocket Client Defaults
+    |--------------------------------------------------------------------------
+    |
+    | Defaults are taken from the provided cURL example. They can be overridden
+    | via environment variables if needed.
+    |
+    */
+
+    'ws' => [
+        'api_key' => env('WS_API_KEY', 'your-secure-api-key-for-laravel-communication'),
+        'auth_url' => env('WS_AUTH_URL', 'https://ws.gridpos.co/api/auth/token'),
+        'url' => env('WS_URL', 'wss://ws.gridpos.co'),
+        'user_id' => env('WS_USER_ID', 'test_user_1'),
+        'business_id' => env('WS_BUSINESS_ID', 'test_business_1'),
+        'role' => env('WS_ROLE', 'user'),
+    ],
+
 ];

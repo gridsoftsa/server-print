@@ -21,6 +21,44 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
+## WebSocket listener (server-print)
+
+This project includes an Artisan command that authenticates against `https://ws.gridpos.co/api/auth/token` and connects to `wss://ws.gridpos.co`, logging all incoming messages.
+
+### Configure
+
+Set the following environment variables in your `.env`:
+
+- `WS_API_KEY`: API key provided by DevOps (required)
+- `WS_URL`: WebSocket URL, default `wss://ws.gridpos.co`
+- `WS_AUTH_URL`: Auth endpoint, default `https://ws.gridpos.co/api/auth/token`
+- `WS_USER_ID`: User identifier (required)
+- `WS_BUSINESS_ID`: Business identifier (required)
+- `WS_ROLE`: Role (default `user`)
+
+### Run
+
+```
+php artisan ws:listen
+```
+
+You can override via options:
+
+```
+php artisan ws:listen \
+  --userId=test_user_1 \
+  --businessId=test_business_1 \
+  --role=user \
+  --url=wss://ws.gridpos.co \
+  --auth=https://ws.gridpos.co/api/auth/token
+```
+
+Messages are logged to Laravel logs. To tail logs during development:
+
+```
+tail -f storage/logs/laravel.log | cat
+```
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
