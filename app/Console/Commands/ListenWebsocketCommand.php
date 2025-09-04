@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\PrinterService;
 use Ratchet\Client\Connector as RatchetConnector;
 use React\EventLoop\Factory as LoopFactory;
 
@@ -34,8 +35,8 @@ class ListenWebsocketCommand extends Command
     public function handle(): int
     {
         $apiKey = config('app.ws.api_key');
-        $userId = $this->option('userId') ?: config('app.ws.user_id');
-        $businessId = $this->option('businessId') ?: config('app.ws.business_id');
+        $userId = $this->option('userId') ?: config('app.ws.user_id'); //Es el slug del cliente "matambre"
+        $businessId = $this->option('businessId') ?: config('app.ws.business_id'); //Es el canal de impresion "matambre-server-print"
         $role = $this->option('role') ?: config('app.ws.role');
         $authUrl = $this->option('auth') ?: config('app.ws.auth_url');
         $wsUrl = $this->option('url') ?: config('app.ws.url');
@@ -202,6 +203,28 @@ class ListenWebsocketCommand extends Command
                                                     $eventName = $arr[0];
                                                     $eventPayload = $arr[1] ?? null;
                                                     Log::info('Socket.IO event', ['event' => $eventName, 'payload' => $eventPayload]);
+
+                                                    // Integración con PrinterService
+                                                    if ($eventName === 'business-event' && is_array($eventPayload)) {
+                                                        $data = $eventPayload['data'] ?? $eventPayload;
+                                                        $action = $data['action'] ?? ($eventPayload['action'] ?? null);
+                                                        try {
+                                                            $printerService = app(PrinterService::class);
+                                                            if ($action === 'salePrinter') {
+                                                                $this->processSalePrint($printerService, $data);
+                                                            } elseif ($action === 'orderPrinter') {
+                                                                $this->processOrderPrint($printerService, $data);
+                                                            } elseif ($action === 'openCashDrawer') {
+                                                                $printer = $data['printer'] ?? env('DEFAULT_PRINTER', 'POS-80');
+                                                                $printerService->openCash($printer);
+                                                            }
+                                                        } catch (\Throwable $e) {
+                                                            Log::error('WS process event error', [
+                                                                'action' => $action,
+                                                                'error' => $e->getMessage(),
+                                                            ]);
+                                                        }
+                                                    }
                                                 }
                                             } catch (\Throwable $e) {
                                                 Log::warning('Failed to parse Socket.IO event', ['data' => $jsonPart, 'error' => $e->getMessage()]);
@@ -236,6 +259,73 @@ class ListenWebsocketCommand extends Command
             return 1;
         }
     }
+
+    private function processSalePrint(PrinterService $printerService, $value): void
+    {
+        try {
+            $data = [
+                'printerName' => $value['printer'] ?? ($value['printerName'] ?? env('DEFAULT_PRINTER', 'POS-80')),
+                'base64Image' => $value['image'] ?? ($value['base64Image'] ?? null),
+                'logoBase64' => $value['logo_base64'] ?? ($value['logoBase64'] ?? null),
+                'logo' => $value['logo'] ?? null,
+                'openCash' => $value['open_cash'] ?? ($value['openCash'] ?? false),
+                'useImage' => $value['print_settings']['use_image'] ?? ($value['useImage'] ?? false),
+                'dataJson' => $value['data_json'] ?? ($value['dataJson'] ?? null),
+                'company' => $value['company'] ?? null,
+            ];
+
+            if (empty($data['logoBase64'])) {
+                $printerService->printSale(
+                    (string) $data['printerName'],
+                    (string) ($data['base64Image'] ?? ''),
+                    (bool) $data['openCash'],
+                    $data['logoBase64'],
+                    $data['logo']
+                );
+            } elseif (!empty($data['dataJson']) && $data['useImage'] === false) {
+                $printerService->printSaleEscPos(
+                    (string) $data['printerName'],
+                    (array) $data['dataJson'],
+                    (bool) $data['openCash'],
+                    $data['company'],
+                    (string) $data['logoBase64']
+                );
+            } else {
+                $printerService->printSale(
+                    (string) $data['printerName'],
+                    (string) ($data['base64Image'] ?? ''),
+                    (bool) $data['openCash'],
+                    $data['logoBase64'],
+                    $data['logo']
+                );
+            }
+        } catch (\Throwable $e) {
+            Log::error('WS processSalePrint error: ' . $e->getMessage(), [
+                'printer' => $value['printer'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function processOrderPrint(PrinterService $printerService, $value): void
+    {
+        try {
+            $data = [
+                'printerName' => $value['printer'] ?? ($value['printerName'] ?? env('DEFAULT_PRINTER', 'POS-80')),
+                'orderData' => $value['data_json'] ?? ($value['orderData'] ?? []),
+                'openCash' => $value['open_cash'] ?? ($value['openCash'] ?? false),
+            ];
+
+            $printerService->printOrder(
+                (string) $data['printerName'],
+                (array) $data['orderData'],
+                (bool) $data['openCash']
+            );
+        } catch (\Throwable $e) {
+            Log::error('WS processOrderPrint error: ' . $e->getMessage(), [
+                'printer' => $value['printer'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 }
-
-

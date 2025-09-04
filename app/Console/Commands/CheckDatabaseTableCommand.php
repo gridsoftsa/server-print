@@ -4,9 +4,8 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
-use App\Http\Controllers\PrinterController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Services\PrinterService;
 
 class CheckDatabaseTableCommand extends Command
 {
@@ -33,7 +32,7 @@ class CheckDatabaseTableCommand extends Command
     {
         $api = env('APP_ENV') == 'local' ? 'api' : 'api-demo';
         $clientSlug = env('API_URL_POS');
-        $controller = app(PrinterController::class);
+        $printerService = app(PrinterService::class);
         $url = "https://$api.gridpos.co/print-queue";
         $response = Http::withHeaders([
             'Authorization' => 'f57225ee-7a78-4c05-aa3d-bbf1a0c4e1e3',
@@ -63,14 +62,14 @@ class CheckDatabaseTableCommand extends Command
                 }
                 $action = $value['action'];
                 $handlers = [
-                    'openCashDrawer' => function () use ($controller, $value) {
-                        $controller->openCash($value['printer']);
+                    'openCashDrawer' => function () use ($printerService, $value) {
+                        $printerService->openCash($value['printer']);
                     },
-                    'orderPrinter' => function () use ($controller, $value) {
-                        $this->processOrderPrint($controller, $value);
+                    'orderPrinter' => function () use ($printerService, $value) {
+                        $this->processOrderPrint($printerService, $value);
                     },
-                    'salePrinter' => function () use ($controller, $value) {
-                        $this->processSalePrint($controller, $value);
+                    'salePrinter' => function () use ($printerService, $value) {
+                        $this->processSalePrint($printerService, $value);
                     },
                 ];
 
@@ -96,7 +95,7 @@ class CheckDatabaseTableCommand extends Command
         return 0;
     }
 
-    private function processSalePrint($controller, $value)
+    private function processSalePrint($printerService, $value)
     {
         try {
             $data = [
@@ -109,10 +108,15 @@ class CheckDatabaseTableCommand extends Command
                 'dataJson' => $value['data_json'] ?? null,
                 'company' => $value['company'] ?? null,
             ];
-            $request = Request::create('/', 'GET', $data);
             // ✅ LÓGICA PRINCIPAL: Si NO hay logo_base64, usar printSale (imagen)
             if (empty($value['logo_base64']) || $value['logo_base64'] === null) {
-                $controller->printSale($request);
+                $printerService->printSale(
+                    $data['printerName'],
+                    (string) ($data['base64Image'] ?? ''),
+                    (bool) $data['openCash'],
+                    $data['logoBase64'],
+                    $data['logo']
+                );
             }
             // ✅ Si HAY logo_base64 + data_json Y use_image es false, usar ESC/POS
             else if (
@@ -121,11 +125,23 @@ class CheckDatabaseTableCommand extends Command
                 isset($value['print_settings']['use_image']) &&
                 !$value['print_settings']['use_image']
             ) {
-                $controller->printSaleEscPos($request);
+                $printerService->printSaleEscPos(
+                    $data['printerName'],
+                    (array) $data['dataJson'],
+                    (bool) $data['openCash'],
+                    $data['company'],
+                    (string) $data['logoBase64']
+                );
             }
             // ✅ FALLBACK: Si hay logo_base64 pero use_image es true o no está definido, usar imagen
             else {
-                $controller->printSale($request);
+                $printerService->printSale(
+                    $data['printerName'],
+                    (string) ($data['base64Image'] ?? ''),
+                    (bool) $data['openCash'],
+                    $data['logoBase64'],
+                    $data['logo']
+                );
             }
         } catch (\Exception $e) {
             Log::error('Error procesando impresión de venta: ' . $e->getMessage(), [
@@ -139,7 +155,7 @@ class CheckDatabaseTableCommand extends Command
     /**
      * Procesar impresión de orden tradicional
      */
-    private function processOrderPrint($controller, $value)
+    private function processOrderPrint($printerService, $value)
     {
         $data = [
             'printerName' => $value['printer'],
@@ -147,9 +163,18 @@ class CheckDatabaseTableCommand extends Command
             'openCash' => $value['open_cash'] ?? false,
             'useJsonMode' => true // Activar modo ESC/POS optimizado
         ];
-
-        $request = Request::create('/', 'GET', $data);
-        $controller->printOrder($request);
+        try {
+            $printerService->printOrder(
+                $data['printerName'],
+                (array) $data['orderData'],
+                (bool) $data['openCash']
+            );
+        } catch (\Exception $e) {
+            Log::error('Error procesando impresión de orden: ' . $e->getMessage(), [
+                'printer' => $value['printer'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
     /**
      * Eliminar registro de la cola de impresión
