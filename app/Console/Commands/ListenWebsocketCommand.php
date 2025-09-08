@@ -271,7 +271,7 @@ class ListenWebsocketCommand extends Command
                 'openCash' => $value['open_cash'] ?? ($value['openCash'] ?? false),
                 'useImage' => $value['print_settings']['use_image'] ?? ($value['useImage'] ?? false),
                 'dataJson' => $value['data_json'] ?? ($value['dataJson'] ?? null),
-                'company' => $value['company'] ?? null,
+                'company' => $value['company'] ?? ($value['data_json']['company'] ?? null),
             ];
 
             if (empty($data['logoBase64'])) {
