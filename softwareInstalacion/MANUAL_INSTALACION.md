@@ -71,6 +71,10 @@ En la ventana que se abre:
 -   **Log on as**: `Local System account`
 -   ✅ Marca: `Allow service to interact with desktop`
 
+### **Pestaña "Process"**
+
+-   **Priority**: `realtime`
+
 ### 3.3 Guardar
 
 1. Haz clic en **"Install service"**
