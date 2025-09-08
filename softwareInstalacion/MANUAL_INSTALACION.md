@@ -58,7 +58,7 @@ En la ventana que se abre:
 
 -   **Path**: `C:\laragon\bin\php\php-8.2\php.exe`
 -   **Startup directory**: `C:\laragon\www\server-print`
--   **Arguments**: `artisan websocket:listen`
+-   **Arguments**: `artisan ws:listen`
 
 #### **Pestaña "Details"**
 
