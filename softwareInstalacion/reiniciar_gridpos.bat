@@ -28,8 +28,5 @@ echo ========================================
 echo    SERVICIO REINICIADO EXITOSAMENTE
 echo ========================================
 echo.
-echo Estado del servicio:
-C:\nssm\nssm.exe query gridpos | findstr "STATE"
-echo.
 echo Presiona cualquier tecla para salir...
 pause >nul
