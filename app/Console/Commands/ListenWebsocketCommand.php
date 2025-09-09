@@ -174,7 +174,7 @@ class ListenWebsocketCommand extends Command
 
                                     $conn->on('message', function ($msg) use ($conn) {
                                         $text = (string) $msg;
-                                        Log::info('WS message', ['message' => $text]);
+                                        // Log::info('WS message', ['message' => $text]);
 
                                         // Engine.IO open packet
                                         if (strlen($text) > 0 && $text[0] === '0') {
@@ -202,7 +202,7 @@ class ListenWebsocketCommand extends Command
                                                 if (is_array($arr) && count($arr) >= 1) {
                                                     $eventName = $arr[0];
                                                     $eventPayload = $arr[1] ?? null;
-                                                    Log::info('Socket.IO event', ['event' => $eventName, 'payload' => $eventPayload]);
+                                                    //Log::info('Socket.IO event', ['event' => $eventName, 'payload' => $eventPayload]);
 
                                                     // Integración con PrinterService
                                                     if ($eventName === 'business-event' && is_array($eventPayload)) {
