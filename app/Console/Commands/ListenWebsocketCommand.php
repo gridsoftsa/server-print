@@ -23,17 +23,35 @@ class ListenWebsocketCommand extends Command
         . '{--role=user : Role for auth}'
         . '{--url= : WebSocket URL (overrides env)}'
         . '{--auth= : Auth URL (overrides env)}'
-        . '{--insecure : Disable TLS peer verification (for debugging only)}';
+        . '{--insecure : Disable TLS peer verification (for debugging only)}'
+        . '{--max-retries=0 : Maximum retry attempts (0 = infinite)}'
+        . '{--retry-delay=5 : Initial retry delay in seconds}'
+        . '{--max-delay=300 : Maximum retry delay in seconds}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Authenticate and connect to ws.gridpos.co; log all incoming WebSocket messages';
+    protected $description = 'Authenticate and connect to ws.gridpos.co; log all incoming WebSocket messages with auto-reconnect';
+
+    /**
+     * Connection retry state
+     */
+    private int $retryCount = 0;
+    private int $maxRetries;
+    private int $retryDelay;
+    private int $maxDelay;
+    private bool $shouldReconnect = true;
 
     public function handle(): int
     {
+        // Initialize retry configuration
+        $this->maxRetries = (int) $this->option('max-retries');
+        $this->retryDelay = (int) $this->option('retry-delay');
+        $this->maxDelay = (int) $this->option('max-delay');
+        $this->shouldReconnect = true;
+
         $apiKey = config('app.ws.api_key');
         $userId = $this->option('userId') ?: config('app.ws.user_id'); //Es el slug del cliente "matambre"
         $businessId = $this->option('businessId') ?: config('app.ws.business_id'); //Es el canal de impresion "matambre-server-print"
@@ -46,6 +64,53 @@ class ListenWebsocketCommand extends Command
             return 1;
         }
 
+        // Setup signal handlers for graceful shutdown
+        if (function_exists('pcntl_signal')) {
+            pcntl_signal(SIGTERM, [$this, 'handleShutdown']);
+            pcntl_signal(SIGINT, [$this, 'handleShutdown']);
+        }
+
+        $this->info('Starting WebSocket listener with auto-reconnect...');
+        $this->line('Max retries: ' . ($this->maxRetries === 0 ? 'infinite' : $this->maxRetries));
+        $this->line('Retry delay: ' . $this->retryDelay . 's (max: ' . $this->maxDelay . 's)');
+
+        return $this->connectWithRetry($apiKey, $userId, $businessId, $role, $authUrl, $wsUrl);
+    }
+
+    private function connectWithRetry(string $apiKey, string $userId, string $businessId, string $role, string $authUrl, string $wsUrl): int
+    {
+        while ($this->shouldReconnect) {
+            try {
+                $result = $this->attemptConnection($apiKey, $userId, $businessId, $role, $authUrl, $wsUrl);
+                if ($result === 0) {
+                    // Connection successful, reset retry count
+                    $this->retryCount = 0;
+                    return 0;
+                }
+            } catch (\Throwable $e) {
+                Log::error('WS connection attempt failed', ['error' => $e->getMessage(), 'retry' => $this->retryCount]);
+            }
+
+            // Check if we should retry
+            if ($this->maxRetries > 0 && $this->retryCount >= $this->maxRetries) {
+                $this->error('Maximum retry attempts reached (' . $this->maxRetries . '). Exiting.');
+                return 1;
+            }
+
+            if ($this->shouldReconnect) {
+                $this->retryCount++;
+                $delay = min($this->retryDelay * pow(2, $this->retryCount - 1), $this->maxDelay);
+
+                $this->warn('Connection failed. Retrying in ' . $delay . ' seconds... (attempt ' . $this->retryCount . ')');
+                sleep($delay);
+            }
+        }
+
+        return 0;
+    }
+
+    private function attemptConnection(string $apiKey, string $userId, string $businessId, string $role, string $authUrl, string $wsUrl): int
+    {
         try {
             $this->line('Requesting token...');
             $resp = Http::withHeaders([
@@ -105,11 +170,13 @@ class ListenWebsocketCommand extends Command
 
                     $conn->on('close', function ($code = null, $reason = null) use ($loop) {
                         Log::warning('WS closed', ['code' => $code, 'reason' => $reason]);
+                        $this->shouldReconnect = true;
                         $loop->stop();
                     });
 
                     $conn->on('error', function ($e) use ($loop) {
                         Log::error('WS error', ['error' => $e instanceof \Throwable ? $e->getMessage() : $e]);
+                        $this->shouldReconnect = true;
                         $loop->stop();
                     });
                 }, function ($e) use ($loop, $connector, $wsUrl, $token) {
@@ -137,11 +204,13 @@ class ListenWebsocketCommand extends Command
 
                             $conn->on('close', function ($code = null, $reason = null) use ($loop) {
                                 Log::warning('WS closed', ['code' => $code, 'reason' => $reason]);
+                                $this->shouldReconnect = true;
                                 $loop->stop();
                             });
 
                             $conn->on('error', function ($e) use ($loop) {
                                 Log::error('WS error', ['error' => $e instanceof \Throwable ? $e->getMessage() : $e]);
+                                $this->shouldReconnect = true;
                                 $loop->stop();
                             });
                         }, function ($e2) use ($loop, $connector, $wsUrl, $token) {
@@ -235,17 +304,20 @@ class ListenWebsocketCommand extends Command
 
                                     $conn->on('close', function ($code = null, $reason = null) use ($loop) {
                                         Log::warning('WS closed', ['code' => $code, 'reason' => $reason]);
+                                        $this->shouldReconnect = true;
                                         $loop->stop();
                                     });
 
                                     $conn->on('error', function ($e) use ($loop) {
                                         Log::error('WS error', ['error' => $e instanceof \Throwable ? $e->getMessage() : $e]);
+                                        $this->shouldReconnect = true;
                                         $loop->stop();
                                     });
                                 }, function ($e3) use ($loop) {
                                     $message3 = $e3 instanceof \Throwable ? $e3->getMessage() : (string) $e3;
                                     Log::error('WS connect failed (socket.io endpoint)', ['error' => $message3]);
                                     $this->error('WebSocket connection failed (socket.io endpoint): ' . $message3);
+                                    $this->shouldReconnect = true;
                                     $loop->stop();
                                 });
                         });
@@ -258,6 +330,15 @@ class ListenWebsocketCommand extends Command
             $this->error('Fatal error: ' . $e->getMessage());
             return 1;
         }
+    }
+
+    /**
+     * Handle shutdown signals gracefully
+     */
+    public function handleShutdown(): void
+    {
+        $this->info('Received shutdown signal. Stopping reconnection...');
+        $this->shouldReconnect = false;
     }
 
     private function processSalePrint(PrinterService $printerService, $value): void
