@@ -70,9 +70,7 @@ class ListenWebsocketCommand extends Command
             pcntl_signal(SIGINT, [$this, 'handleShutdown']);
         }
 
-        $this->info('Starting WebSocket listener with auto-reconnect...');
-        $this->line('Max retries: ' . ($this->maxRetries === 0 ? 'infinite' : $this->maxRetries));
-        $this->line('Retry delay: ' . $this->retryDelay . 's (max: ' . $this->maxDelay . 's)');
+        $this->info('Starting WebSocket listener...');
 
         return $this->connectWithRetry($apiKey, $userId, $businessId, $role, $authUrl, $wsUrl);
     }
@@ -88,20 +86,18 @@ class ListenWebsocketCommand extends Command
                     return 0;
                 }
             } catch (\Throwable $e) {
-                Log::error('WS connection attempt failed', ['error' => $e->getMessage(), 'retry' => $this->retryCount]);
+                // Silent retry
             }
 
             // Check if we should retry
             if ($this->maxRetries > 0 && $this->retryCount >= $this->maxRetries) {
-                $this->error('Maximum retry attempts reached (' . $this->maxRetries . '). Exiting.');
+                $this->error('Connection failed. Maximum retries reached.');
                 return 1;
             }
 
             if ($this->shouldReconnect) {
                 $this->retryCount++;
                 $delay = min($this->retryDelay * pow(2, $this->retryCount - 1), $this->maxDelay);
-
-                $this->warn('Connection failed. Retrying in ' . $delay . ' seconds... (attempt ' . $this->retryCount . ')');
                 sleep($delay);
             }
         }
@@ -112,7 +108,6 @@ class ListenWebsocketCommand extends Command
     private function attemptConnection(string $apiKey, string $userId, string $businessId, string $role, string $authUrl, string $wsUrl): int
     {
         try {
-            $this->line('Requesting token...');
             $resp = Http::withHeaders([
                 'X-API-Key' => $apiKey,
                 'Content-Type' => 'application/json',
@@ -123,23 +118,14 @@ class ListenWebsocketCommand extends Command
             ]);
 
             if (!$resp->ok()) {
-                $this->error('Auth failed: ' . $resp->status());
-                Log::error('WS auth failed', ['status' => $resp->status(), 'body' => $resp->body()]);
                 return 1;
             }
 
             $json = $resp->json();
             $token = $json['token'] ?? null;
             if (empty($token)) {
-                $this->error('Auth response missing token');
-                Log::error('WS auth missing token', ['json' => $json]);
                 return 1;
             }
-
-            $this->info('Token acquired. Connecting to WebSocket...');
-            $this->line('Auth URL: ' . $authUrl);
-            $this->line('WS URL: ' . $wsUrl);
-            $this->line('User: ' . $userId . ' | Business: ' . $businessId . ' | Role: ' . $role);
 
             $loop = LoopFactory::create();
             $insecure = (bool) $this->option('insecure');
@@ -157,81 +143,58 @@ class ListenWebsocketCommand extends Command
             $headers = [
                 'Authorization' => 'Bearer ' . $token,
             ];
-            $this->line('Using header Authorization: Bearer ' . substr($token, 0, 12) . '...');
 
             $connector($wsUrl, [], $headers)
                 ->then(function (\Ratchet\Client\WebSocket $conn) use ($loop) {
-                    $this->info('WebSocket connected. Listening...');
+                    $this->info('✅ WebSocket connected');
 
                     $conn->on('message', function ($msg) use ($conn) {
                         $text = (string) $msg;
-                        Log::info('WS message', ['message' => $text]);
+                        // Process messages silently
                     });
 
                     $conn->on('close', function ($code = null, $reason = null) use ($loop) {
-                        Log::warning('WS closed', ['code' => $code, 'reason' => $reason]);
+                        $this->warn('❌ WebSocket disconnected');
                         $this->shouldReconnect = true;
                         $loop->stop();
                     });
 
                     $conn->on('error', function ($e) use ($loop) {
-                        Log::error('WS error', ['error' => $e instanceof \Throwable ? $e->getMessage() : $e]);
+                        $this->warn('❌ WebSocket error');
                         $this->shouldReconnect = true;
                         $loop->stop();
                     });
                 }, function ($e) use ($loop, $connector, $wsUrl, $token) {
-                    $message = $e instanceof \Throwable ? $e->getMessage() : (string) $e;
-                    Log::error('WS connect failed (header auth)', ['error' => $message]);
-                    if ($this->getOutput()->isVerbose()) {
-                        $this->error('WebSocket connection failed: ' . $message);
-                    }
-
                     $fallbackUrl = $wsUrl . (strpos($wsUrl, '?') === false ? '?' : '&') . 'token=' . urlencode($token);
-                    if ($this->getOutput()->isVerbose()) {
-                        $this->line('Retrying with token in query string: ' . $fallbackUrl);
-                    } else {
-                        $this->line('Retrying with token in query string...');
-                    }
 
                     $connector($fallbackUrl)
                         ->then(function (\Ratchet\Client\WebSocket $conn) use ($loop) {
-                            $this->info('WebSocket connected (query token). Listening...');
+                            $this->info('✅ WebSocket connected');
 
                             $conn->on('message', function ($msg) use ($conn) {
                                 $text = (string) $msg;
-                                Log::info('WS message', ['message' => $text]);
+                                // Process messages silently
                             });
 
                             $conn->on('close', function ($code = null, $reason = null) use ($loop) {
-                                Log::warning('WS closed', ['code' => $code, 'reason' => $reason]);
+                                $this->warn('❌ WebSocket disconnected');
                                 $this->shouldReconnect = true;
                                 $loop->stop();
                             });
 
                             $conn->on('error', function ($e) use ($loop) {
-                                Log::error('WS error', ['error' => $e instanceof \Throwable ? $e->getMessage() : $e]);
+                                $this->warn('❌ WebSocket error');
                                 $this->shouldReconnect = true;
                                 $loop->stop();
                             });
                         }, function ($e2) use ($loop, $connector, $wsUrl, $token) {
-                            $message2 = $e2 instanceof \Throwable ? $e2->getMessage() : (string) $e2;
-                            Log::error('WS connect failed (query auth)', ['error' => $message2]);
-                            if ($this->getOutput()->isVerbose()) {
-                                $this->error('WebSocket connection failed (query): ' . $message2);
-                            }
-
                             // Third attempt: Socket.IO Engine.IO websocket endpoint
                             $base = rtrim($wsUrl, '/');
                             $socketIoUrl = $base . '/socket.io/?EIO=4&transport=websocket&token=' . urlencode($token);
-                            if ($this->getOutput()->isVerbose()) {
-                                $this->line('Retrying Socket.IO websocket endpoint: ' . $socketIoUrl);
-                            } else {
-                                $this->line('Retrying Socket.IO websocket endpoint...');
-                            }
 
                             $connector($socketIoUrl)
                                 ->then(function (\Ratchet\Client\WebSocket $conn) use ($loop, $token) {
-                                    $this->info('Connected to Socket.IO websocket endpoint. Listening...');
+                                    $this->info('✅ WebSocket connected');
 
                                     // Send Socket.IO namespace connect with auth token ("40" + JSON payload)
                                     try {
@@ -243,7 +206,6 @@ class ListenWebsocketCommand extends Command
 
                                     $conn->on('message', function ($msg) use ($conn) {
                                         $text = (string) $msg;
-                                        // Log::info('WS message', ['message' => $text]);
 
                                         // Engine.IO open packet
                                         if (strlen($text) > 0 && $text[0] === '0') {
@@ -257,13 +219,6 @@ class ListenWebsocketCommand extends Command
                                         }
 
                                         // Socket.IO event packet: 42["event", {...}]
-                                        /**
-                                         * TODO: Diego aca es donde viene el payload del websocket
-                                         * aca deberia poder llamar una funcion que tome el payload y haga lo que tenga que hacer
-                                         * pero que sea una funcion aparte, es decir podria llamar la funcion processSalePrint
-                                         * y a futuro que no llame el controlador que llame una clase, porque llamando al controlador
-                                         * abre un canal request que consume mucha mas memoria.
-                                         **/
                                         if (strncmp($text, '42', 2) === 0) {
                                             $jsonPart = substr($text, 2);
                                             try {
@@ -271,7 +226,6 @@ class ListenWebsocketCommand extends Command
                                                 if (is_array($arr) && count($arr) >= 1) {
                                                     $eventName = $arr[0];
                                                     $eventPayload = $arr[1] ?? null;
-                                                    //Log::info('Socket.IO event', ['event' => $eventName, 'payload' => $eventPayload]);
 
                                                     // Integración con PrinterService
                                                     if ($eventName === 'business-event' && is_array($eventPayload)) {
@@ -288,35 +242,29 @@ class ListenWebsocketCommand extends Command
                                                                 $printerService->openCash($printer);
                                                             }
                                                         } catch (\Throwable $e) {
-                                                            Log::error('WS process event error', [
-                                                                'action' => $action,
-                                                                'error' => $e->getMessage(),
-                                                            ]);
+                                                            // Silent error handling
                                                         }
                                                     }
                                                 }
                                             } catch (\Throwable $e) {
-                                                Log::warning('Failed to parse Socket.IO event', ['data' => $jsonPart, 'error' => $e->getMessage()]);
+                                                // Silent error handling
                                             }
                                             return;
                                         }
                                     });
 
                                     $conn->on('close', function ($code = null, $reason = null) use ($loop) {
-                                        Log::warning('WS closed', ['code' => $code, 'reason' => $reason]);
+                                        $this->warn('❌ WebSocket disconnected');
                                         $this->shouldReconnect = true;
                                         $loop->stop();
                                     });
 
                                     $conn->on('error', function ($e) use ($loop) {
-                                        Log::error('WS error', ['error' => $e instanceof \Throwable ? $e->getMessage() : $e]);
+                                        $this->warn('❌ WebSocket error');
                                         $this->shouldReconnect = true;
                                         $loop->stop();
                                     });
                                 }, function ($e3) use ($loop) {
-                                    $message3 = $e3 instanceof \Throwable ? $e3->getMessage() : (string) $e3;
-                                    Log::error('WS connect failed (socket.io endpoint)', ['error' => $message3]);
-                                    $this->error('WebSocket connection failed (socket.io endpoint): ' . $message3);
                                     $this->shouldReconnect = true;
                                     $loop->stop();
                                 });
@@ -326,8 +274,6 @@ class ListenWebsocketCommand extends Command
             $loop->run();
             return 0;
         } catch (\Throwable $e) {
-            Log::error('WS listener fatal error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            $this->error('Fatal error: ' . $e->getMessage());
             return 1;
         }
     }
@@ -337,7 +283,7 @@ class ListenWebsocketCommand extends Command
      */
     public function handleShutdown(): void
     {
-        $this->info('Received shutdown signal. Stopping reconnection...');
+        $this->info('Stopping...');
         $this->shouldReconnect = false;
     }
 
@@ -381,10 +327,7 @@ class ListenWebsocketCommand extends Command
                 );
             }
         } catch (\Throwable $e) {
-            Log::error('WS processSalePrint error: ' . $e->getMessage(), [
-                'printer' => $value['printer'] ?? null,
-                'error' => $e->getMessage(),
-            ]);
+            // Silent error handling
         }
     }
 
@@ -403,10 +346,7 @@ class ListenWebsocketCommand extends Command
                 (bool) $data['openCash']
             );
         } catch (\Throwable $e) {
-            Log::error('WS processOrderPrint error: ' . $e->getMessage(), [
-                'printer' => $value['printer'] ?? null,
-                'error' => $e->getMessage(),
-            ]);
+            // Silent error handling
         }
     }
 }
