@@ -12,9 +12,7 @@ if %errorlevel% neq 0 (
     echo Verificando estado del servicio...
     C:\nssm\nssm.exe status gridpos
     echo.
-    echo Presiona cualquier tecla para salir...
-    pause >nul
-    exit /b 1
+    exit 1
 ) else (
     echo ✅ Servicio reiniciado correctamente
 )
@@ -28,5 +26,4 @@ echo ========================================
 echo    SERVICIO REINICIADO EXITOSAMENTE
 echo ========================================
 echo.
-echo Presiona cualquier tecla para salir...
-pause >nul
+exit 0
