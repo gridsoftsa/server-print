@@ -145,6 +145,7 @@ class PrinterService
             $printer->selectPrintMode();
 
             $printer->feed(1);
+            $this->triggerPrintAlert($printer);
             $printer->cut();
 
             if ($openCash) {
@@ -245,6 +246,7 @@ class PrinterService
             $this->printFooter($printer, $saleData);
 
             $printer->feed(2);
+            $this->triggerPrintAlert($printer);
             $printer->cut();
 
             if ($openCash) {
@@ -597,9 +599,41 @@ class PrinterService
         if (empty($text)) return '';
 
         return str_replace([
-            'ñ','Ñ','á','é','í','ó','ú','ü','Á','É','Í','Ó','Ú','Ü','¿','¡','°'
+            'ñ',
+            'Ñ',
+            'á',
+            'é',
+            'í',
+            'ó',
+            'ú',
+            'ü',
+            'Á',
+            'É',
+            'Í',
+            'Ó',
+            'Ú',
+            'Ü',
+            '¿',
+            '¡',
+            '°'
         ], [
-            'n','N','a','e','i','o','u','u','A','E','I','O','U','U','?','!','o'
+            'n',
+            'N',
+            'a',
+            'e',
+            'i',
+            'o',
+            'u',
+            'u',
+            'A',
+            'E',
+            'I',
+            'O',
+            'U',
+            'U',
+            '?',
+            '!',
+            'o'
         ], trim((string) $text));
     }
 
@@ -712,6 +746,22 @@ class PrinterService
 
         return $lines;
     }
+
+    private function triggerPrintAlert(Printer $printer, int $times = 1, int $durationMs = 120): void
+    {
+        try {
+            $connector = $printer->getPrintConnector();
+            $times = max(1, $times);
+            for ($i = 0; $i < $times; $i++) {
+                $connector->write("\x07");
+                if ($durationMs > 0) {
+                    usleep($durationMs * 1000);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo reproducir el beep de alerta', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 }
-
-
