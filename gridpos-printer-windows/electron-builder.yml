@@ -1,0 +1,4 @@
+electronDownload:
+  mirror: https://github.com/electron/electron/releases/download/
+  cache: ./.electron
+

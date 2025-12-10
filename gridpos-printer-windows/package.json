@@ -1,0 +1,62 @@
+{
+    "name": "gridpos-printer",
+    "version": "1.0.0",
+    "description": "Aplicación nativa de Windows para impresión GridPOS con WebSocket",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "build": "electron-builder",
+        "build:win": "electron-builder --win",
+        "dist": "electron-builder --publish=never",
+        "postinstall": "node scripts/fix-electron-install.js || true"
+    },
+    "keywords": [
+        "gridpos",
+        "printer",
+        "websocket",
+        "escpos"
+    ],
+    "author": "GridPOS",
+    "license": "MIT",
+    "devDependencies": {
+        "electron": "^28.0.0",
+        "electron-builder": "^24.9.1"
+    },
+    "dependencies": {
+        "ws": "^8.16.0",
+        "node-thermal-printer": "^4.4.2",
+        "axios": "^1.6.2",
+        "electron-store": "^8.1.0"
+    },
+    "build": {
+        "appId": "co.gridpos.printer",
+        "productName": "Servidor de Impresión GridPOS",
+        "directories": {
+            "output": "dist"
+        },
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "icon": "build/icon.ico",
+            "requestedExecutionLevel": "asInvoker"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "Servidor de Impresión GridPOS",
+            "runAfterFinish": false
+        },
+        "electronDownload": {
+            "mirror": "https://github.com/electron/electron/releases/download/"
+        },
+        "publish": null
+    }
+}

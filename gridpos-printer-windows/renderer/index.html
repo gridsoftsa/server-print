@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servidor de Impresión GridPOS - Configuración</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <img src="icon.png" alt="Servidor de Impresión GridPOS" class="header-icon" onerror="this.style.display='none';">
+                <h1 class="header-title">Servidor de Impresión GridPOS</h1>
+            </div>
+            <div class="status-indicator">
+                <div class="status-content">
+                    <span id="statusDot" class="status-dot disconnected"></span>
+                    <span id="statusText" class="status-label">Desconectado</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <form id="configForm">
+                <section class="form-section minimal">
+                    <div class="form-group">
+                        <label for="userId">Cliente (Slug) *</label>
+                        <input type="text" id="userId" name="userId" required
+                               placeholder="Ej: matambre"
+                               autocomplete="off">
+                        <small>El canal de impresión se generará automáticamente</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="defaultPrinter">Impresora</label>
+                        <div class="printer-selector">
+                            <select id="defaultPrinter" name="defaultPrinter">
+                                <option value="">Cargando impresoras...</option>
+                            </select>
+                            <button type="button" id="refreshPrinters" class="btn-icon" title="Actualizar lista">
+                                🔄
+                            </button>
+                            <button type="button" id="testPrinter" class="btn-icon" title="Probar impresora">
+                                🧪
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoStart" name="autoStart" value="true">
+                            <span>Abrir al iniciar Windows</span>
+                        </label>
+                        <small>La aplicación se iniciará automáticamente cuando Windows arranque</small>
+                    </div>
+                </section>
+
+                <div class="form-actions minimal">
+                    <button type="button" id="testConnection" class="btn-secondary">
+                        🔌 Probar
+                    </button>
+                    <button type="button" id="connectBtn" class="btn-secondary">
+                        🔗 Conectar
+                    </button>
+                    <button type="button" id="disconnectBtn" class="btn-secondary" style="display: none;">
+                        ❌ Desconectar
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        💾 Guardar
+                    </button>
+                </div>
+            </form>
+
+            <div id="message" class="message hidden"></div>
+
+            <!-- Área de logs -->
+            <section class="logs-section">
+                <div class="logs-header">
+                    <h3>📋 Logs del Sistema</h3>
+                    <button type="button" id="clearLogs" class="btn-clear-logs" title="Limpiar logs">🗑️ Limpiar</button>
+                </div>
+                <div id="logsContainer" class="logs-container">
+                    <div class="log-entry">Sistema iniciado...</div>
+                </div>
+            </section>
+
+            <!-- Campos ocultos para valores por defecto -->
+            <input type="hidden" id="apiKey" name="apiKey" value="your-secure-api-key-for-laravel-communication">
+            <input type="hidden" id="businessId" name="businessId">
+            <input type="hidden" id="role" name="role" value="user">
+            <input type="hidden" id="wsUrl" name="wsUrl" value="wss://ws.gridpos.co">
+            <input type="hidden" id="authUrl" name="authUrl" value="https://ws.gridpos.co/api/auth/token">
+            <input type="hidden" id="autoConnect" name="autoConnect" value="true">
+            <input type="hidden" id="retryDelay" name="retryDelay" value="3">
+        </main>
+
+        <footer>
+            <p>Servidor de Impresión GridPOS v1.0.0</p>
+            <p id="lastMessage">Último mensaje: Nunca</p>
+        </footer>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
+
