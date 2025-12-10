@@ -762,4 +762,11 @@ if (!gotTheLock) {
             sendLogToUI(logData.message, logData.type || "info");
         }
     });
+
+    // Escuchar eventos de log de printerService
+    printerService?.on("log", (logData) => {
+        if (logData && logData.message) {
+            sendLogToUI(logData.message, logData.type || "info");
+        }
+    });
 }

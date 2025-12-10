@@ -21,6 +21,8 @@ class WebSocketService extends EventEmitter {
         this.maxReconnectDelay = 60000; // Máximo 1 minuto (más agresivo)
         this.consecutive502Errors = 0; // Contador de errores 502 consecutivos
         this.wasConnected = false; // Flag para saber si alguna vez se conectó exitosamente
+        this.isSocketIO = false; // Flag para saber si estamos usando Socket.IO
+        this.handshakeCompleted = false; // Flag para saber si el handshake está completo
     }
 
     async connect() {
@@ -227,7 +229,14 @@ class WebSocketService extends EventEmitter {
 
             const tryConnect = (url, useHeaders = true) => {
                 attempt++;
-                console.log(`🔌 Intentando conexión (método ${attempt}/3)...`);
+                const usingSocketIO = url.includes("/socket.io/");
+                this.isSocketIO = usingSocketIO;
+                this.handshakeCompleted = false; // Reset handshake flag para cada intento
+                console.log(
+                    `🔌 Intentando conexión (método ${attempt}/3)${
+                        usingSocketIO ? " [Socket.IO]" : ""
+                    }...`
+                );
 
                 // Limpiar conexión anterior si existe y está cerrada o cerrando
                 if (this.ws) {
@@ -238,16 +247,49 @@ class WebSocketService extends EventEmitter {
                             currentState !== WebSocket.CLOSED &&
                             currentState !== WebSocket.CLOSING
                         ) {
+                            // Remover listeners primero para evitar eventos durante el cierre
+                            this.ws.removeAllListeners();
+
                             // Si está conectado o conectando, usar terminate para forzar cierre limpio
                             if (
                                 currentState === WebSocket.OPEN ||
                                 currentState === WebSocket.CONNECTING
                             ) {
-                                this.ws.removeAllListeners();
-                                this.ws.terminate(); // Usar terminate para conexiones en proceso
+                                try {
+                                    // Verificar que el WebSocket aún existe y no está cerrado antes de terminate
+                                    if (
+                                        this.ws &&
+                                        this.ws.readyState !==
+                                            WebSocket.CLOSED &&
+                                        this.ws.readyState !== WebSocket.CLOSING
+                                    ) {
+                                        this.ws.terminate();
+                                    }
+                                } catch (terminateError) {
+                                    // Si terminate falla, intentar close como fallback
+                                    try {
+                                        if (
+                                            this.ws &&
+                                            this.ws.readyState !==
+                                                WebSocket.CLOSED
+                                        ) {
+                                            this.ws.close();
+                                        }
+                                    } catch (closeError) {
+                                        // Ignorar errores al cerrar
+                                    }
+                                }
                             } else {
-                                this.ws.removeAllListeners();
-                                this.ws.close();
+                                try {
+                                    if (
+                                        this.ws &&
+                                        this.ws.readyState !== WebSocket.CLOSED
+                                    ) {
+                                        this.ws.close();
+                                    }
+                                } catch (closeError) {
+                                    // Ignorar errores al cerrar
+                                }
                             }
                         } else {
                             // Solo remover listeners si ya está cerrada
@@ -259,6 +301,9 @@ class WebSocketService extends EventEmitter {
                             "⚠️ Error limpiando conexión anterior (ignorado):",
                             e.message
                         );
+                    } finally {
+                        // Asegurar que la referencia se limpia
+                        this.ws = null;
                     }
                 }
 
@@ -305,12 +350,17 @@ class WebSocketService extends EventEmitter {
                                     this.ws &&
                                     this.ws.readyState === WebSocket.OPEN
                                 ) {
+                                    // Socket.IO Engine.IO v4: "40" es el packet de conexión para el namespace "/"
+                                    // El formato correcto es "40" seguido del payload JSON si hay datos
+                                    // Para el namespace por defecto, solo "40" es suficiente
+                                    // Pero si necesitamos enviar el token, lo enviamos como "40" + JSON payload
                                     const payload = JSON.stringify({
                                         token: token,
                                     });
                                     this.ws.send("40" + payload); // Socket.IO connect packet
+                                    this.handshakeCompleted = true; // Marcar handshake como completado
                                     const logMsg =
-                                        "📤 Enviado packet Socket.IO de conexión";
+                                        "📤 Enviado packet Socket.IO de conexión (handshake completado)";
                                     console.log(logMsg);
                                     this.emit("log", {
                                         message: logMsg,
@@ -323,7 +373,10 @@ class WebSocketService extends EventEmitter {
                                     e.message
                                 );
                             }
-                        }, 500); // Esperar 500ms antes de enviar
+                        }, 200); // Reducir a 200ms para responder más rápido
+                    } else {
+                        // Para conexiones no-Socket.IO, el handshake se considera completado inmediatamente
+                        this.handshakeCompleted = true;
                     }
 
                     // Iniciar ping para mantener la conexión activa
@@ -334,6 +387,15 @@ class WebSocketService extends EventEmitter {
 
                 this.ws.on("message", (data) => {
                     this.lastMessageTime = new Date();
+
+                    // Log de todos los mensajes recibidos para debugging
+                    const messagePreview = data.toString().substring(0, 200);
+                    const logMsg = `📨 Mensaje recibido del WebSocket: ${messagePreview}${
+                        data.toString().length > 200 ? "..." : ""
+                    }`;
+                    console.log(logMsg);
+                    this.emit("log", { message: logMsg, type: "debug" });
+
                     this.handleMessage(data);
                 });
 
@@ -369,7 +431,28 @@ class WebSocketService extends EventEmitter {
                                     currentState === WebSocket.OPEN
                                 ) {
                                     this.ws.removeAllListeners("error"); // Remover solo el listener de error para evitar loops
-                                    this.ws.terminate();
+                                    try {
+                                        if (
+                                            this.ws.readyState !==
+                                                WebSocket.CLOSED &&
+                                            this.ws.readyState !==
+                                                WebSocket.CLOSING
+                                        ) {
+                                            this.ws.terminate();
+                                        }
+                                    } catch (terminateError) {
+                                        // Si terminate falla, intentar close
+                                        try {
+                                            if (
+                                                this.ws.readyState !==
+                                                WebSocket.CLOSED
+                                            ) {
+                                                this.ws.close();
+                                            }
+                                        } catch (closeError) {
+                                            // Ignorar errores al cerrar
+                                        }
+                                    }
                                 }
                             }
                         } catch (e) {
@@ -614,8 +697,73 @@ class WebSocketService extends EventEmitter {
 
             // Manejar diferentes formatos de mensaje
             // Socket.IO Engine.IO ping -> pong
+            // IMPORTANTE: Solo responder si estamos usando Socket.IO Y el handshake está completo
             if (text === "2") {
-                this.ws.send("3");
+                // Verificar que estamos usando Socket.IO antes de responder
+                const currentUrl = this.ws?.url || "";
+                const isSocketIOConnection = currentUrl.includes("/socket.io/");
+
+                if (!isSocketIOConnection) {
+                    // Si no es Socket.IO, ignorar el ping (podría ser un mensaje normal)
+                    const warnLog =
+                        "⚠️ Ping recibido pero no estamos usando Socket.IO, ignorando...";
+                    console.log(warnLog);
+                    this.emit("log", { message: warnLog, type: "warning" });
+                    return;
+                }
+
+                // Verificar que el handshake esté completo antes de responder
+                // Si el handshake no está completo, responder de inmediato de todas formas
+                // porque el servidor podría estar esperando el pong para mantener la conexión
+                if (!this.handshakeCompleted) {
+                    const waitLog =
+                        "⏳ Ping recibido antes del handshake, respondiendo de inmediato...";
+                    console.log(waitLog);
+                    this.emit("log", { message: waitLog, type: "debug" });
+                    // Responder inmediatamente para mantener la conexión
+                    try {
+                        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                            this.ws.send("3");
+                            const pongLog =
+                                "🏓 Pong enviado (antes de handshake completo)";
+                            console.log(pongLog);
+                            this.emit("log", {
+                                message: pongLog,
+                                type: "debug",
+                            });
+                        }
+                    } catch (error) {
+                        const errorLog = `❌ Error enviando pong: ${error.message}`;
+                        console.error(errorLog);
+                        this.emit("log", { message: errorLog, type: "error" });
+                    }
+                    return;
+                }
+
+                // Responder al ping solo si el handshake está completo
+                const pingLog = "🏓 Ping recibido, enviando pong...";
+                console.log(pingLog);
+                this.emit("log", { message: pingLog, type: "debug" });
+
+                try {
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send("3");
+                    }
+                } catch (error) {
+                    const errorLog = `❌ Error enviando pong: ${error.message}`;
+                    console.error(errorLog);
+                    this.emit("log", { message: errorLog, type: "error" });
+                }
+                return;
+            }
+
+            // Socket.IO connect acknowledgment: 40 (sin payload) o 40{...}
+            // El servidor confirma que el handshake fue exitoso
+            if (text.startsWith("40") && text.length <= 3) {
+                const ackLog = `✅ Socket.IO handshake confirmado por servidor`;
+                console.log(ackLog);
+                this.emit("log", { message: ackLog, type: "success" });
+                this.handshakeCompleted = true; // Asegurar que está marcado como completado
                 return;
             }
 
@@ -628,15 +776,25 @@ class WebSocketService extends EventEmitter {
                         const eventName = arr[0];
                         const eventPayload = arr[1] || null;
 
+                        const eventLog = `📡 Evento Socket.IO recibido: ${eventName}`;
+                        console.log(eventLog);
+                        this.emit("log", { message: eventLog, type: "info" });
+
                         if (eventName === "business-event" && eventPayload) {
                             this.processBusinessEvent(eventPayload);
+                        } else {
+                            const unknownEventLog = `⚠️ Evento desconocido: ${eventName}`;
+                            console.log(unknownEventLog);
+                            this.emit("log", {
+                                message: unknownEventLog,
+                                type: "warning",
+                            });
                         }
                     }
                 } catch (parseError) {
-                    console.error(
-                        "Error parseando mensaje Socket.IO:",
-                        parseError
-                    );
+                    const parseErrorLog = `❌ Error parseando mensaje Socket.IO: ${parseError.message}`;
+                    console.error(parseErrorLog);
+                    this.emit("log", { message: parseErrorLog, type: "error" });
                 }
                 return;
             }
@@ -644,14 +802,34 @@ class WebSocketService extends EventEmitter {
             // Mensaje JSON directo
             try {
                 const message = JSON.parse(text);
+                const jsonLog = `📦 Mensaje JSON recibido: ${JSON.stringify(
+                    message
+                ).substring(0, 100)}...`;
+                console.log(jsonLog);
+                this.emit("log", { message: jsonLog, type: "info" });
+
                 if (message.action) {
                     this.processDirectMessage(message);
+                } else {
+                    const noActionLog = `⚠️ Mensaje JSON sin acción: ${JSON.stringify(
+                        message
+                    ).substring(0, 100)}`;
+                    console.log(noActionLog);
+                    this.emit("log", { message: noActionLog, type: "warning" });
                 }
             } catch (parseError) {
-                // Ignorar mensajes no parseables
+                // Mensaje no parseable como JSON
+                const unparseableLog = `⚠️ Mensaje no parseable como JSON: ${text.substring(
+                    0,
+                    100
+                )}`;
+                console.log(unparseableLog);
+                this.emit("log", { message: unparseableLog, type: "warning" });
             }
         } catch (error) {
-            console.error("Error procesando mensaje:", error);
+            const errorLog = `❌ Error procesando mensaje: ${error.message}`;
+            console.error(errorLog);
+            this.emit("log", { message: errorLog, type: "error" });
         }
     }
 
@@ -667,13 +845,31 @@ class WebSocketService extends EventEmitter {
                     const saleLogMsg = `🖨️ Procesando impresión de venta...`;
                     console.log(saleLogMsg);
                     this.emit("log", { message: saleLogMsg, type: "info" });
-                    this.printerService.processSalePrint(data);
+                    this.printerService
+                        .processSalePrint(data)
+                        .catch((error) => {
+                            const errorMsg = `❌ Error procesando impresión de venta: ${error.message}`;
+                            console.error(errorMsg);
+                            this.emit("log", {
+                                message: errorMsg,
+                                type: "error",
+                            });
+                        });
                     break;
                 case "orderPrinter":
                     const orderLogMsg = `🖨️ Procesando impresión de orden...`;
                     console.log(orderLogMsg);
                     this.emit("log", { message: orderLogMsg, type: "info" });
-                    this.printerService.processOrderPrint(data);
+                    this.printerService
+                        .processOrderPrint(data)
+                        .catch((error) => {
+                            const errorMsg = `❌ Error procesando impresión de orden: ${error.message}`;
+                            console.error(errorMsg);
+                            this.emit("log", {
+                                message: errorMsg,
+                                type: "error",
+                            });
+                        });
                     break;
                 case "openCashDrawer":
                     const drawerLogMsg = `💰 Abriendo cajón de efectivo...`;
@@ -683,7 +879,16 @@ class WebSocketService extends EventEmitter {
                         data.printer ||
                         this.configManager.get("defaultPrinter") ||
                         "POS-80";
-                    this.printerService.openCashDrawer(printer);
+                    this.printerService
+                        .openCashDrawer(printer)
+                        .catch((error) => {
+                            const errorMsg = `❌ Error abriendo cajón: ${error.message}`;
+                            console.error(errorMsg);
+                            this.emit("log", {
+                                message: errorMsg,
+                                type: "error",
+                            });
+                        });
                     break;
                 default:
                     console.log("Acción desconocida:", action);

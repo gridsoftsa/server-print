@@ -22,7 +22,22 @@ class ConfigManager {
     }
 
     getConfig() {
-        return this.store.store;
+        const config = this.store.store;
+        
+        // Migración: corregir businessId si contiene el valor antiguo
+        if (config.businessId && config.businessId.includes('-server-print') && !config.businessId.includes('-server-printer')) {
+            config.businessId = config.businessId.replace('-server-print', '-server-printer');
+            this.store.set('businessId', config.businessId);
+            console.log(`✅ Migración: businessId actualizado de "${config.businessId.replace('-server-printer', '-server-print')}" a "${config.businessId}"`);
+        }
+        
+        // Si tiene userId pero businessId está vacío o tiene el formato antiguo, regenerarlo
+        if (config.userId && (!config.businessId || config.businessId.includes('-server-print'))) {
+            config.businessId = `${config.userId}-server-printer`;
+            this.store.set('businessId', config.businessId);
+        }
+        
+        return config;
     }
 
     saveConfig(config) {
@@ -31,9 +46,14 @@ class ConfigManager {
             throw new Error("User ID es requerido");
         }
 
+        // Migración: corregir businessId si contiene el valor antiguo
+        if (config.businessId && config.businessId.includes('-server-print') && !config.businessId.includes('-server-printer')) {
+            config.businessId = config.businessId.replace('-server-print', '-server-printer');
+        }
+
         // Generar Business ID automáticamente si no se proporciona
         if (!config.businessId && config.userId) {
-            config.businessId = `${config.userId}-server-print`;
+            config.businessId = `${config.userId}-server-printer`;
         }
 
         // Asegurar que el API Key siempre esté configurado

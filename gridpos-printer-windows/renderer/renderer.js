@@ -25,7 +25,7 @@ function setupBusinessIdAutoGeneration() {
         userIdInput.addEventListener("input", (e) => {
             const userId = e.target.value.trim();
             if (userId) {
-                businessIdInput.value = `${userId}-server-print`;
+                businessIdInput.value = `${userId}-server-printer`;
             } else {
                 businessIdInput.value = "";
             }
@@ -63,8 +63,24 @@ function populateForm(config) {
     document.getElementById("apiKey").value =
         config.apiKey || "your-secure-api-key-for-laravel-communication";
     const userId = config.userId || "";
-    const businessId =
-        config.businessId || (userId ? `${userId}-server-print` : "");
+    let businessId =
+        config.businessId || (userId ? `${userId}-server-printer` : "");
+
+    // Migración: corregir businessId si contiene el valor antiguo
+    if (
+        businessId &&
+        businessId.includes("-server-print") &&
+        !businessId.includes("-server-printer")
+    ) {
+        businessId = businessId.replace("-server-print", "-server-printer");
+        // Guardar la corrección automáticamente
+        if (config.userId) {
+            window.electronAPI
+                .saveConfig({ ...config, businessId })
+                .catch(() => {});
+        }
+    }
+
     document.getElementById("businessId").value = businessId;
     document.getElementById("role").value = config.role || "user";
     document.getElementById("wsUrl").value =
@@ -117,7 +133,7 @@ function buildConfigFromForm() {
 
     // Si no hay businessId pero sí userId, generarlo automáticamente
     if (!businessId && userId) {
-        businessId = `${userId}-server-print`;
+        businessId = `${userId}-server-printer`;
     }
 
     // Obtener valor del checkbox de auto-start

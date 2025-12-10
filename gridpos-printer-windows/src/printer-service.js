@@ -10,11 +10,19 @@ const execAsync = util.promisify(exec);
 const fs = require("fs").promises;
 const path = require("path");
 const os = require("os");
+const EventEmitter = require("events");
 
-class PrinterService {
+class PrinterService extends EventEmitter {
     constructor() {
+        super();
         this.tempDir = path.join(os.tmpdir(), "gridpos-printer");
         this.ensureTempDir();
+    }
+
+    // Helper para emitir logs
+    emitLog(message, type = "info") {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        this.emit("log", { message, type });
     }
 
     async ensureTempDir() {
@@ -119,38 +127,92 @@ class PrinterService {
     createPrinter(printerName) {
         // Para Windows, usar el nombre de la impresora directamente
         // node-thermal-printer soporta impresoras Windows nativas
+        // Manejar impresoras compartidas y locales
         try {
+            const isWindows = process.platform === "win32";
+            let interfaceStr;
+            
+            if (isWindows) {
+                // Si la impresora está compartida (contiene \\), usar el formato de red directamente
+                if (printerName.includes("\\\\") || printerName.startsWith("\\\\")) {
+                    // Impresora compartida: usar el formato completo de red
+                    interfaceStr = printerName;
+                    this.emitLog(`🔗 Detectada impresora compartida: ${printerName}`, "info");
+                } else {
+                    // Impresora local: usar formato printer:nombre
+                    interfaceStr = `printer:${printerName}`;
+                }
+            } else {
+                // macOS/Linux: usar el nombre directamente
+                interfaceStr = printerName;
+            }
+
             const printer = new ThermalPrinter({
                 type: PrinterTypes.EPSON, // Compatible con la mayoría de impresoras ESC/POS
-                interface: `printer:${printerName}`, // Formato para Windows
+                interface: interfaceStr,
                 characterSet: CharacterSet.PC852_LATIN2,
                 removeSpecialCharacters: false,
                 lineCharacter: "-",
                 breakLine: BreakLine.WORD,
                 options: {
-                    timeout: 10000, // Aumentar timeout para Windows
+                    timeout: 15000, // Aumentar timeout para Windows e impresoras compartidas
                 },
             });
 
             return printer;
         } catch (error) {
-            console.error(
-                `Error creando impresora ${printerName}:`,
-                error.message
-            );
+            const errorMsg = `Error creando impresora ${printerName}: ${error.message}`;
+            console.error(errorMsg);
+            this.emitLog(errorMsg, "error");
             throw new Error(
                 `No se pudo inicializar la impresora "${printerName}": ${error.message}`
             );
         }
     }
 
+    // Helper para verificar conexión con reintentos para impresoras compartidas
+    async verifyPrinterConnection(printer, printerName) {
+        try {
+            await printer.isPrinterConnected();
+            return true;
+        } catch (connectionError) {
+            const errorMsg = connectionError.message || String(connectionError);
+            
+            // Si es error de driver en Windows y no es impresora compartida, intentar formato alternativo
+            if (process.platform === "win32" && 
+                (errorMsg.includes("Driver no set") || errorMsg.includes("driver")) &&
+                !printerName.includes("\\\\") && 
+                !printerName.startsWith("\\\\")) {
+                
+                this.emitLog(`🔄 Intentando formato alternativo para impresora compartida...`, "info");
+                try {
+                    // Intentar con formato de red directo
+                    const sharedPrinter = this.createPrinter(`\\\\${printerName}`);
+                    await sharedPrinter.isPrinterConnected();
+                    this.emitLog(`✅ Impresora compartida ${printerName} conectada con formato alternativo`, "success");
+                    return { success: true, printer: sharedPrinter };
+                } catch (altError) {
+                    this.emitLog(`⚠️ Formato alternativo también falló: ${altError.message}`, "warning");
+                }
+            }
+            
+            // Si llegamos aquí, el error persiste
+            throw connectionError;
+        }
+    }
+
     async openCashDrawer(printerName = "POS-80") {
         try {
-            const printer = this.createPrinter(printerName);
+            let printer = this.createPrinter(printerName);
 
-            // Verificar conexión con mejor manejo de errores
+            // Verificar conexión con mejor manejo de errores y reintentos
             try {
-                await printer.isPrinterConnected();
+                const connectionResult = await this.verifyPrinterConnection(printer, printerName);
+                
+                // Si verifyPrinterConnection retornó un objeto con printer alternativo, usarlo
+                if (connectionResult && connectionResult.printer) {
+                    printer = connectionResult.printer;
+                }
             } catch (connectionError) {
                 const errorMsg =
                     connectionError.message || String(connectionError);
@@ -159,7 +221,9 @@ class PrinterService {
                     errorMsg.includes("driver")
                 ) {
                     throw new Error(
-                        `Impresora "${printerName}" no disponible. Verifica que esté instalada y configurada en Windows.`
+                        `Impresora "${printerName}" no disponible. ` +
+                        `Verifica que esté instalada, configurada y compartida correctamente en Windows. ` +
+                        `Si es una impresora compartida, asegúrate de tener permisos de acceso.`
                     );
                 }
                 throw connectionError;
@@ -184,8 +248,16 @@ class PrinterService {
             const logoBase64 = data.logo_base64 || data.logoBase64;
             const dataJson = data.data_json || data.dataJson || data;
 
+            this.emitLog(`🖨️ Iniciando impresión de venta en impresora: ${printerName}`, "info");
+            this.emitLog(`   - Abrir cajón: ${openCash}`, "debug");
+            this.emitLog(`   - Usar imagen: ${useImage}`, "debug");
+            this.emitLog(`   - Tiene imagen base64: ${!!base64Image}`, "debug");
+            this.emitLog(`   - Tiene logo base64: ${!!logoBase64}`, "debug");
+            this.emitLog(`   - Tiene datos JSON: ${!!dataJson}`, "debug");
+
             // Si tiene logoBase64 y no usa imagen, usar formato ESC/POS
             if (logoBase64 && !useImage && dataJson) {
+                this.emitLog(`   → Usando método: ESC/POS con logo`, "info");
                 await this.printSaleEscPos(
                     printerName,
                     dataJson,
@@ -193,7 +265,9 @@ class PrinterService {
                     data.company,
                     logoBase64
                 );
+                this.emitLog(`✅ Impresión de venta completada exitosamente (ESC/POS con logo)`, "success");
             } else if (base64Image) {
+                this.emitLog(`   → Usando método: Imagen base64`, "info");
                 await this.printSaleImage(
                     printerName,
                     base64Image,
@@ -201,7 +275,9 @@ class PrinterService {
                     logoBase64,
                     data.logo
                 );
+                this.emitLog(`✅ Impresión de venta completada exitosamente (Imagen)`, "success");
             } else if (dataJson && !useImage) {
+                this.emitLog(`   → Usando método: ESC/POS sin logo`, "info");
                 await this.printSaleEscPos(
                     printerName,
                     dataJson,
@@ -209,11 +285,16 @@ class PrinterService {
                     data.company,
                     logoBase64
                 );
+                this.emitLog(`✅ Impresión de venta completada exitosamente (ESC/POS)`, "success");
             } else {
-                console.warn("No se pudo determinar el método de impresión");
+                const warnMsg = "⚠️ No se pudo determinar el método de impresión - datos insuficientes";
+                this.emitLog(warnMsg, "warning");
+                throw new Error(warnMsg);
             }
         } catch (error) {
-            console.error("Error procesando impresión de venta:", error);
+            const errorMsg = `❌ Error procesando impresión de venta: ${error.message}`;
+            this.emitLog(errorMsg, "error");
+            console.error("Detalles del error:", error);
             throw error;
         }
     }
@@ -224,9 +305,17 @@ class PrinterService {
             const orderData = data.data_json || data.orderData || data;
             const openCash = data.open_cash || data.openCash || false;
 
+            this.emitLog(`🖨️ Iniciando impresión de orden en impresora: ${printerName}`, "info");
+            this.emitLog(`   - Abrir cajón: ${openCash}`, "debug");
+            this.emitLog(`   - Tiene datos de orden: ${!!orderData}`, "debug");
+
             await this.printOrder(printerName, orderData, openCash);
+            
+            this.emitLog(`✅ Impresión de orden completada exitosamente`, "success");
         } catch (error) {
-            console.error("Error procesando impresión de orden:", error);
+            const errorMsg = `❌ Error procesando impresión de orden: ${error.message}`;
+            this.emitLog(errorMsg, "error");
+            console.error("Detalles del error:", error);
             throw error;
         }
     }
@@ -345,20 +434,32 @@ class PrinterService {
         logoBase64 = null
     ) {
         try {
-            const printer = this.createPrinter(printerName);
+            this.emitLog(`🔧 Creando instancia de impresora: ${printerName}`, "info");
+            let printer = this.createPrinter(printerName);
 
-            // Verificar conexión con mejor manejo de errores
+            // Verificar conexión con mejor manejo de errores y reintentos
             try {
-                await printer.isPrinterConnected();
+                this.emitLog(`🔍 Verificando conexión con impresora: ${printerName}`, "info");
+                const connectionResult = await this.verifyPrinterConnection(printer, printerName);
+                
+                // Si verifyPrinterConnection retornó un objeto con printer alternativo, usarlo
+                if (connectionResult && connectionResult.printer) {
+                    printer = connectionResult.printer;
+                }
+                
+                this.emitLog(`✅ Impresora ${printerName} está conectada`, "success");
             } catch (connectionError) {
                 const errorMsg =
                     connectionError.message || String(connectionError);
+                this.emitLog(`❌ Error verificando conexión: ${errorMsg}`, "error");
                 if (
                     errorMsg.includes("Driver no set") ||
                     errorMsg.includes("driver")
                 ) {
                     throw new Error(
-                        `Impresora "${printerName}" no disponible. Verifica que esté instalada y configurada en Windows.`
+                        `Impresora "${printerName}" no disponible. ` +
+                        `Verifica que esté instalada, configurada y compartida correctamente en Windows. ` +
+                        `Si es una impresora compartida, asegúrate de tener permisos de acceso.`
                     );
                 }
                 throw connectionError;
@@ -752,29 +853,45 @@ class PrinterService {
                 await printer.openCashDrawer();
             }
 
+            this.emitLog(`📄 Enviando trabajo de impresión a ${printerName}...`, "info");
             await printer.execute();
+            this.emitLog(`✅ Trabajo de impresión enviado exitosamente a ${printerName}`, "success");
         } catch (error) {
-            console.error("Error imprimiendo venta ESC/POS:", error);
+            const errorMsg = `❌ Error imprimiendo venta ESC/POS: ${error.message}`;
+            this.emitLog(errorMsg, "error");
+            console.error("Detalles del error:", error);
             throw error;
         }
     }
 
     async printOrder(printerName, orderData, openCash = false) {
         try {
-            const printer = this.createPrinter(printerName);
+            this.emitLog(`🔧 Creando instancia de impresora: ${printerName}`, "info");
+            let printer = this.createPrinter(printerName);
 
-            // Verificar conexión con mejor manejo de errores
+            // Verificar conexión con mejor manejo de errores y reintentos
             try {
-                await printer.isPrinterConnected();
+                this.emitLog(`🔍 Verificando conexión con impresora: ${printerName}`, "info");
+                const connectionResult = await this.verifyPrinterConnection(printer, printerName);
+                
+                // Si verifyPrinterConnection retornó un objeto con printer alternativo, usarlo
+                if (connectionResult && connectionResult.printer) {
+                    printer = connectionResult.printer;
+                }
+                
+                this.emitLog(`✅ Impresora ${printerName} está conectada`, "success");
             } catch (connectionError) {
                 const errorMsg =
                     connectionError.message || String(connectionError);
+                this.emitLog(`❌ Error verificando conexión: ${errorMsg}`, "error");
                 if (
                     errorMsg.includes("Driver no set") ||
                     errorMsg.includes("driver")
                 ) {
                     throw new Error(
-                        `Impresora "${printerName}" no disponible. Verifica que esté instalada y configurada en Windows.`
+                        `Impresora "${printerName}" no disponible. ` +
+                        `Verifica que esté instalada, configurada y compartida correctamente en Windows. ` +
+                        `Si es una impresora compartida, asegúrate de tener permisos de acceso.`
                     );
                 }
                 throw connectionError;
@@ -920,9 +1037,13 @@ class PrinterService {
                 await printer.openCashDrawer();
             }
 
+            this.emitLog(`📄 Enviando trabajo de impresión a ${printerName}...`, "info");
             await printer.execute();
+            this.emitLog(`✅ Trabajo de impresión enviado exitosamente a ${printerName}`, "success");
         } catch (error) {
-            console.error("Error imprimiendo orden:", error);
+            const errorMsg = `❌ Error imprimiendo orden: ${error.message}`;
+            this.emitLog(errorMsg, "error");
+            console.error("Detalles del error:", error);
             throw error;
         }
     }
