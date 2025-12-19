@@ -105,19 +105,7 @@ class PrinterService
                 }
 
                 if (!empty($notes) && $notes !== null) {
-                    $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-
-                    if ($isSmallPaper) {
-                        $maxNoteChars = 28;
-                        $noteLines = $this->wordWrapEscPos($notes, $maxNoteChars);
-                        foreach ($noteLines as $noteLine) {
-                            $printer->text("  * " . strtoupper($noteLine) . "\n");
-                        }
-                    } else {
-                        $printer->text("    * " . strtoupper($notes) . "\n");
-                    }
-
-                    $printer->selectPrintMode();
+                    $this->printProductNotes($printer, $notes, $isSmallPaper);
                 }
 
                 if ($currentIndex < $productCount) {
@@ -706,6 +694,94 @@ class PrinterService
         }
     }
 
+    private function printProductNotes($printer, string $notes, bool $isSmallPaper): void
+    {
+        $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+
+        // Separar las notas por comas, pipes y símbolo +, limpiar y filtrar vacíos
+        $noteItems = preg_split('/[,|+]/', $notes);
+        $noteItems = array_map(function ($item) {
+            // Limpiar espacios extra, saltos de línea y caracteres no deseados
+            $cleaned = trim($item);
+            $cleaned = preg_replace('/\s+/', ' ', $cleaned); // Reemplazar múltiples espacios por uno solo
+            return $cleaned;
+        }, $noteItems);
+
+        $noteItems = array_filter($noteItems, function ($item) {
+            return !empty($item) && trim($item) !== '';
+        });
+
+        if (empty($noteItems)) {
+            $printer->selectPrintMode();
+            return;
+        }
+
+        // Ancho máximo considerando el indent y el prefijo "* "
+        $paperWidth = $isSmallPaper ? 32 : 48;
+        $indent = $isSmallPaper ? "  " : "    ";
+        $prefix = $indent . "* ";
+        $separator = " + ";
+        $maxNoteChars = $paperWidth - strlen($prefix); // Ancho disponible para el contenido
+
+        // Agrupar elementos en líneas eficientes
+        $currentLine = "";
+        $isFirstItem = true;
+
+        foreach ($noteItems as $noteItem) {
+            $noteItem = trim($noteItem);
+            if (empty($noteItem)) {
+                continue;
+            }
+
+            $noteItemUpper = strtoupper($noteItem);
+
+            // Si es el primer elemento de la línea
+            if ($isFirstItem) {
+                $testLine = $noteItemUpper;
+            } else {
+                $testLine = $currentLine . $separator . $noteItemUpper;
+            }
+
+            // Si la línea completa cabe, agregar el elemento
+            if (strlen($testLine) <= $maxNoteChars) {
+                $currentLine = $testLine;
+                $isFirstItem = false;
+            } else {
+                // La línea no cabe, imprimir la línea actual si tiene contenido
+                if (!empty($currentLine)) {
+                    $printer->text($prefix . $currentLine . "\n");
+                }
+
+                // Si el elemento individual es muy largo, hacer word wrap
+                if (strlen($noteItemUpper) > $maxNoteChars) {
+                    $wrappedLines = $this->wordWrapEscPos($noteItemUpper, $maxNoteChars);
+                    foreach ($wrappedLines as $index => $line) {
+                        $linePrefix = $index === 0 ? $prefix : $indent . "  ";
+                        $printer->text($linePrefix . trim($line) . "\n");
+                    }
+                    $currentLine = "";
+                    $isFirstItem = true;
+                } else {
+                    // Empezar nueva línea con este elemento
+                    $currentLine = $noteItemUpper;
+                    $isFirstItem = false;
+                }
+            }
+        }
+
+        // Imprimir la última línea si tiene contenido
+        if (!empty($currentLine)) {
+            $printer->text($prefix . $currentLine . "\n");
+        }
+
+        // Imprimir la última línea si tiene contenido
+        if (!empty($currentLine)) {
+            $printer->text($currentLine . "\n");
+        }
+
+        $printer->selectPrintMode();
+    }
+
     private function wordWrapEscPos(string $text, int $maxChars): array
     {
         if (strlen($text) <= $maxChars) {
@@ -717,11 +793,18 @@ class PrinterService
         $currentLine = '';
 
         foreach ($words as $word) {
+            $word = trim($word);
+            if (empty($word)) {
+                continue;
+            }
+
+            // Si una palabra es más larga que el máximo, dividirla
             if (strlen($word) > $maxChars) {
                 if ($currentLine) {
                     $lines[] = trim($currentLine);
                     $currentLine = '';
                 }
+                // Dividir la palabra larga
                 $wordChunks = str_split($word, $maxChars);
                 foreach ($wordChunks as $chunk) {
                     $lines[] = $chunk;
@@ -729,10 +812,12 @@ class PrinterService
                 continue;
             }
 
+            // Intentar agregar la palabra a la línea actual
             $testLine = $currentLine ? $currentLine . ' ' . $word : $word;
             if (strlen($testLine) <= $maxChars) {
                 $currentLine = $testLine;
             } else {
+                // La línea está llena, guardarla y empezar nueva
                 if ($currentLine) {
                     $lines[] = trim($currentLine);
                 }
