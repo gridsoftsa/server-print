@@ -84,15 +84,18 @@ class PrinterService
                 $name = $product['name'] ?? 'Producto';
                 $notes = $product['notes'] ?? '';
 
+                // Separar el nombre base de las opciones (ej: toppings) que vengan dentro del mismo nombre
+                [$baseName, $nameOptions] = $this->splitProductNameAndOptions($name);
+
                 if ($isSmallPaper) {
                     $qtyPadded = str_pad((string) $qty, 2, ' ', STR_PAD_RIGHT);
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                     $maxNameChars = 28;
-                    $nameFormatted = strlen($name) > $maxNameChars ? substr($name, 0, $maxNameChars) : $name;
+                    $nameFormatted = strlen($baseName) > $maxNameChars ? substr($baseName, 0, $maxNameChars) : $baseName;
                     $printer->text($qtyPadded . "  " . strtoupper($nameFormatted) . "\n");
                     $printer->selectPrintMode();
-                    if (strlen($name) > $maxNameChars) {
-                        $remainingName = substr($name, $maxNameChars);
+                    if (strlen($baseName) > $maxNameChars) {
+                        $remainingName = substr($baseName, $maxNameChars);
                         $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                         $printer->text("    " . strtoupper($remainingName) . "\n");
                         $printer->selectPrintMode();
@@ -100,12 +103,22 @@ class PrinterService
                 } else {
                     $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
                     $qtyPadded = str_pad((string) $qty, 2, ' ', STR_PAD_RIGHT);
-                    $printer->text($qtyPadded . "  " . strtoupper($name) . "\n");
+                    $printer->text($qtyPadded . "  " . strtoupper($baseName) . "\n");
                     $printer->selectPrintMode();
                 }
 
+                // Combinar opciones provenientes del nombre + notas del producto
+                $combinedNotesParts = [];
+                if (!empty($nameOptions)) {
+                    $combinedNotesParts[] = $nameOptions;
+                }
                 if (!empty($notes) && $notes !== null) {
-                    $this->printProductNotes($printer, $notes, $isSmallPaper);
+                    $combinedNotesParts[] = $notes;
+                }
+
+                if (!empty($combinedNotesParts)) {
+                    $combinedNotes = implode(' + ', $combinedNotesParts);
+                    $this->printProductNotes($printer, $combinedNotes, $isSmallPaper);
                 }
 
                 if ($currentIndex < $productCount) {
@@ -692,6 +705,45 @@ class PrinterService
                 $printer->text("QR: " . substr($qrData, 0, 40) . "...\n");
             }
         }
+    }
+
+    /**
+     * Separa el nombre base del producto de las opciones que vienen dentro del mismo nombre.
+     *
+     * Ejemplos:
+     *  - "MICHELADAS — ÁGUILA | SAL MICHELADA, PIMIENTA" =>
+     *      ["MICHELADAS — ÁGUILA", "SAL MICHELADA, PIMIENTA"]
+     *  - "VASO MEDIANO 12 ONZ - ZUCARITA 70 ML, FROOT LOOPS 70 ML, PIAZZA | FRESA, MORA" =>
+     *      ["VASO MEDIANO 12 ONZ - ZUCARITA 70 ML, FROOT LOOPS 70 ML, PIAZZA", "FRESA, MORA"]
+     */
+    private function splitProductNameAndOptions(string $name): array
+    {
+        if (trim($name) === '') {
+            return ['Producto', ''];
+        }
+
+        // Normalizar espacios
+        $cleanName = preg_replace('/\s+/', ' ', trim($name));
+
+        // Regla 1: si hay un pipe, asumimos que todo lo que está después del último "|"
+        // son opciones (toppings, sabores, etc.)
+        $lastPipePos = strrpos($cleanName, '|');
+        if ($lastPipePos !== false) {
+            $base = trim(substr($cleanName, 0, $lastPipePos));
+            $options = trim(substr($cleanName, $lastPipePos + 1));
+            return [$base ?: $cleanName, $options];
+        }
+
+        // Regla 2: si no hay pipe pero hay "+", usamos el último "+"
+        $lastPlusPos = strrpos($cleanName, '+');
+        if ($lastPlusPos !== false) {
+            $base = trim(substr($cleanName, 0, $lastPlusPos));
+            $options = trim(substr($cleanName, $lastPlusPos + 1));
+            return [$base ?: $cleanName, $options];
+        }
+
+        // Regla 3: si no hay separadores especiales, todo es nombre base
+        return [$cleanName, ''];
     }
 
     private function printProductNotes($printer, string $notes, bool $isSmallPaper): void
