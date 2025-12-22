@@ -87,6 +87,12 @@ class PrinterService
                 // Separar el nombre base de las opciones (ej: toppings) que vengan dentro del mismo nombre
                 [$baseName, $nameOptions] = $this->splitProductNameAndOptions($name);
 
+                // Limpiar el nombre base
+                $baseName = trim($baseName);
+                if (empty($baseName)) {
+                    $baseName = 'Producto';
+                }
+
                 if ($isSmallPaper) {
                     $qtyPadded = str_pad((string) $qty, 2, ' ', STR_PAD_RIGHT);
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
@@ -108,16 +114,20 @@ class PrinterService
                 }
 
                 // Combinar opciones provenientes del nombre + notas del producto
-                $combinedNotesParts = [];
+                $combinedNotes = '';
                 if (!empty($nameOptions)) {
-                    $combinedNotesParts[] = $nameOptions;
+                    $combinedNotes = trim($nameOptions);
                 }
-                if (!empty($notes) && $notes !== null) {
-                    $combinedNotesParts[] = $notes;
+                if (!empty($notes) && $notes !== null && trim($notes) !== '') {
+                    if (!empty($combinedNotes)) {
+                        $combinedNotes .= ' + ' . trim($notes);
+                    } else {
+                        $combinedNotes = trim($notes);
+                    }
                 }
 
-                if (!empty($combinedNotesParts)) {
-                    $combinedNotes = implode(' + ', $combinedNotesParts);
+                // Imprimir las notas si existen
+                if (!empty($combinedNotes)) {
                     $this->printProductNotes($printer, $combinedNotes, $isSmallPaper);
                 }
 
@@ -727,19 +737,26 @@ class PrinterService
 
         // Regla 1: si hay un pipe, asumimos que todo lo que está después del último "|"
         // son opciones (toppings, sabores, etc.)
+        // Buscar el último pipe que no esté al inicio
         $lastPipePos = strrpos($cleanName, '|');
-        if ($lastPipePos !== false) {
+        if ($lastPipePos !== false && $lastPipePos > 0) {
             $base = trim(substr($cleanName, 0, $lastPipePos));
             $options = trim(substr($cleanName, $lastPipePos + 1));
-            return [$base ?: $cleanName, $options];
+            // Solo retornar si hay contenido en ambas partes
+            if (!empty($base) && !empty($options)) {
+                return [$base, $options];
+            }
         }
 
         // Regla 2: si no hay pipe pero hay "+", usamos el último "+"
         $lastPlusPos = strrpos($cleanName, '+');
-        if ($lastPlusPos !== false) {
+        if ($lastPlusPos !== false && $lastPlusPos > 0) {
             $base = trim(substr($cleanName, 0, $lastPlusPos));
             $options = trim(substr($cleanName, $lastPlusPos + 1));
-            return [$base ?: $cleanName, $options];
+            // Solo retornar si hay contenido en ambas partes
+            if (!empty($base) && !empty($options)) {
+                return [$base, $options];
+            }
         }
 
         // Regla 3: si no hay separadores especiales, todo es nombre base
@@ -824,11 +841,6 @@ class PrinterService
         // Imprimir la última línea si tiene contenido
         if (!empty($currentLine)) {
             $printer->text($prefix . $currentLine . "\n");
-        }
-
-        // Imprimir la última línea si tiene contenido
-        if (!empty($currentLine)) {
-            $printer->text($currentLine . "\n");
         }
 
         $printer->selectPrintMode();
