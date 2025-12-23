@@ -883,8 +883,8 @@ class PrinterService
         // Ancho máximo considerando el indent y el prefijo "* "
         // Para papel grande con DOUBLE_WIDTH, cada carácter ocupa el doble, así que el ancho efectivo es la mitad
         $paperWidth = $isSmallPaper ? 32 : 48;
-        $indent = $isSmallPaper ? "  " : "    ";
-        $prefix = $isSmallPaper ? ($indent . "* ") : ($indent . "* ");
+        $indent = $isSmallPaper ? " " : "  "; // Reducido para mover el asterisco más a la izquierda
+        $prefix = $indent . "* ";
         $separator = " + ";
         // Para papel grande con DOUBLE_WIDTH, dividir el ancho por 2
         $effectiveWidth = $isSmallPaper ? $paperWidth : ($paperWidth / 2);
