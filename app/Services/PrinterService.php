@@ -852,7 +852,7 @@ class PrinterService
             return;
         }
 
-        $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+        $printer->selectPrintMode(Printer::MODE_EMPHASIZED | Printer::MODE_DOUBLE_HEIGHT);
 
         // Separar las notas por comas, pipes y símbolo +, limpiar y filtrar vacíos
         $noteItems = preg_split('/[,|+]/', $notes);
