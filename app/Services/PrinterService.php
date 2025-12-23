@@ -740,11 +740,12 @@ class PrinterService
 
         // Si hay pipe, separar ahí (el nombre base es lo anterior, opciones lo posterior)
         if ($pipePos !== false && $pipePos > 0) {
-            $basePart = trim(substr($cleanName, 0, $pipePos));
+            $basePart = substr($cleanName, 0, $pipePos);
             $options = trim(substr($cleanName, $pipePos + 1));
 
             // Si el nombre base contiene un guión, separar también ahí
-            // Ejemplo: "MICHELADAS — ÁGUILA | SAL..." => base: "MICHELADAS", options: "ÁGUILA | SAL..."
+            // Ejemplo: "MICHELADAS — 3x POKER | SAL..." => base: "MICHELADAS", options: "3x POKER, SAL..."
+            // Buscar diferentes tipos de guiones sin hacer trim primero para no perder posiciones
             $dashLongPos = strpos($basePart, '—');
             $dashMediumPos = strpos($basePart, '–');
             $dashNormalPos = strpos($basePart, ' - ');
@@ -753,19 +754,23 @@ class PrinterService
             $dashPos = false;
             $dashLength = 1;
 
+            // Priorizar guión largo, luego medio, luego normal con espacios, luego simple
             if ($dashLongPos !== false && $dashLongPos > 0) {
                 $dashPos = $dashLongPos;
+                $dashLength = 1;
             } elseif ($dashMediumPos !== false && $dashMediumPos > 0) {
                 $dashPos = $dashMediumPos;
+                $dashLength = 1;
             } elseif ($dashNormalPos !== false && $dashNormalPos > 0) {
                 $dashPos = $dashNormalPos;
-                $dashLength = 3;
+                $dashLength = 3; // " - " tiene 3 caracteres
             } elseif ($dashSimplePos !== false && $dashSimplePos > 0) {
+                // Verificar que tenga espacios alrededor para evitar falsos positivos
                 $charBefore = $dashSimplePos > 0 ? substr($basePart, $dashSimplePos - 1, 1) : '';
                 $charAfter = $dashSimplePos < strlen($basePart) - 1 ? substr($basePart, $dashSimplePos + 1, 1) : '';
-                if ($charBefore === ' ' || $charAfter === ' ') {
+                if (($charBefore === ' ' && $charAfter === ' ') || ($charBefore === ' ' && $charAfter !== '')) {
                     $dashPos = $dashSimplePos;
-                    $dashLength = ($charBefore === ' ') ? 2 : 1;
+                    $dashLength = ($charBefore === ' ') ? 2 : 1; // Incluir el espacio antes si existe
                 }
             }
 
@@ -774,12 +779,14 @@ class PrinterService
                 $base = trim(substr($basePart, 0, $dashPos));
                 // Agregar lo que viene después del guión a las opciones
                 $afterDash = trim(substr($basePart, $dashPos + $dashLength));
+                // Limpiar cualquier símbolo de guión que pueda haber quedado
                 $afterDash = preg_replace('/^\s*[—–-]\s*/u', '', $afterDash);
                 if (!empty($afterDash)) {
-                    $options = $afterDash . ' | ' . $options;
+                    // Concatenar con coma para que printProductNotes lo procese correctamente
+                    $options = $afterDash . ', ' . $options;
                 }
             } else {
-                $base = $basePart;
+                $base = trim($basePart);
             }
 
             if (!empty($base) && !empty($options)) {
