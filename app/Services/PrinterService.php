@@ -852,7 +852,12 @@ class PrinterService
             return;
         }
 
-        $printer->selectPrintMode(Printer::MODE_EMPHASIZED | Printer::MODE_DOUBLE_HEIGHT);
+        // Usar el mismo tamaño que el nombre del producto
+        if ($isSmallPaper) {
+            $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+        } else {
+            $printer->selectPrintMode(Printer::MODE_DOUBLE_WIDTH | Printer::MODE_EMPHASIZED);
+        }
 
         // Separar las notas por comas, pipes y símbolo +, limpiar y filtrar vacíos
         $noteItems = preg_split('/[,|+]/', $notes);
@@ -876,11 +881,14 @@ class PrinterService
         }
 
         // Ancho máximo considerando el indent y el prefijo "* "
+        // Para papel grande con DOUBLE_WIDTH, cada carácter ocupa el doble, así que el ancho efectivo es la mitad
         $paperWidth = $isSmallPaper ? 32 : 48;
         $indent = $isSmallPaper ? "  " : "    ";
-        $prefix = $indent . "* ";
+        $prefix = $isSmallPaper ? ($indent . "* ") : ($indent . "* ");
         $separator = " + ";
-        $maxNoteChars = $paperWidth - strlen($prefix); // Ancho disponible para el contenido
+        // Para papel grande con DOUBLE_WIDTH, dividir el ancho por 2
+        $effectiveWidth = $isSmallPaper ? $paperWidth : ($paperWidth / 2);
+        $maxNoteChars = (int)($effectiveWidth - strlen($prefix)); // Ancho disponible para el contenido
 
         // Agrupar elementos en líneas eficientes
         $currentLine = "";
