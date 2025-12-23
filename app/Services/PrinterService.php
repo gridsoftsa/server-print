@@ -722,7 +722,7 @@ class PrinterService
      *
      * Ejemplos:
      *  - "MICHELADAS — ÁGUILA | SAL MICHELADA, PIMIENTA" =>
-     *      ["MICHELADAS — ÁGUILA", "SAL MICHELADA, PIMIENTA"]
+     *      ["MICHELADAS", "— ÁGUILA | SAL MICHELADA, PIMIENTA"]
      *  - "VASO MEDIANO 12 ONZ - ZUCARITA 70 ML, FROOT LOOPS 70 ML, PIAZZA | FRESA, MORA" =>
      *      ["VASO MEDIANO 12 ONZ - ZUCARITA 70 ML, FROOT LOOPS 70 ML, PIAZZA", "FRESA, MORA"]
      */
@@ -735,25 +735,28 @@ class PrinterService
         // Normalizar espacios
         $cleanName = preg_replace('/\s+/', ' ', trim($name));
 
-        // Regla 1: si hay un pipe, asumimos que todo lo que está después del último "|"
-        // son opciones (toppings, sabores, etc.)
-        // Buscar el último pipe que no esté al inicio
-        $lastPipePos = strrpos($cleanName, '|');
-        if ($lastPipePos !== false && $lastPipePos > 0) {
-            $base = trim(substr($cleanName, 0, $lastPipePos));
-            $options = trim(substr($cleanName, $lastPipePos + 1));
-            // Solo retornar si hay contenido en ambas partes
-            if (!empty($base) && !empty($options)) {
+        // Buscar el primer separador: "—" (guión largo) o "|" (pipe)
+        // Si encontramos "—", el nombre base es solo lo anterior al "—"
+        // Las opciones son lo posterior al "—" pero eliminando solo el símbolo "—" (manteniendo el texto)
+        $dashPos = strpos($cleanName, '—');
+        $pipePos = strpos($cleanName, '|');
+
+        // Si hay un guión largo, separar ahí
+        // El nombre base es lo anterior al "—", las opciones son lo posterior sin el símbolo "—"
+        if ($dashPos !== false && $dashPos > 0) {
+            $base = trim(substr($cleanName, 0, $dashPos));
+            $options = trim(substr($cleanName, $dashPos + 1)); // Todo después del "—" (sin el símbolo)
+            // Eliminar solo el símbolo "—" si quedó al inicio
+            $options = preg_replace('/^—\s*/', '', $options);
+            if (!empty($base)) {
                 return [$base, $options];
             }
         }
 
-        // Regla 2: si no hay pipe pero hay "+", usamos el último "+"
-        $lastPlusPos = strrpos($cleanName, '+');
-        if ($lastPlusPos !== false && $lastPlusPos > 0) {
-            $base = trim(substr($cleanName, 0, $lastPlusPos));
-            $options = trim(substr($cleanName, $lastPlusPos + 1));
-            // Solo retornar si hay contenido en ambas partes
+        // Si no hay guión largo pero hay pipe, separar en el primer pipe
+        if ($pipePos !== false && $pipePos > 0) {
+            $base = trim(substr($cleanName, 0, $pipePos));
+            $options = trim(substr($cleanName, $pipePos + 1));
             if (!empty($base) && !empty($options)) {
                 return [$base, $options];
             }
@@ -765,6 +768,10 @@ class PrinterService
 
     private function printProductNotes($printer, string $notes, bool $isSmallPaper): void
     {
+        if (empty(trim($notes))) {
+            return;
+        }
+
         $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
 
         // Separar las notas por comas, pipes y símbolo +, limpiar y filtrar vacíos
@@ -773,11 +780,14 @@ class PrinterService
             // Limpiar espacios extra, saltos de línea y caracteres no deseados
             $cleaned = trim($item);
             $cleaned = preg_replace('/\s+/', ' ', $cleaned); // Reemplazar múltiples espacios por uno solo
+            // Limpiar el guión largo si está al inicio (mantenerlo pero con espacio adecuado)
+            $cleaned = preg_replace('/^—\s*/', '— ', $cleaned);
             return $cleaned;
         }, $noteItems);
 
         $noteItems = array_filter($noteItems, function ($item) {
-            return !empty($item) && trim($item) !== '';
+            $trimmed = trim($item);
+            return !empty($trimmed) && $trimmed !== '—' && $trimmed !== '|';
         });
 
         if (empty($noteItems)) {
