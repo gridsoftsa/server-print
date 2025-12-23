@@ -735,28 +735,88 @@ class PrinterService
         // Normalizar espacios
         $cleanName = preg_replace('/\s+/', ' ', trim($name));
 
-        // Buscar el primer separador: "—" (guión largo) o "|" (pipe)
-        // Si encontramos "—", el nombre base es solo lo anterior al "—"
-        // Las opciones son lo posterior al "—" pero eliminando solo el símbolo "—" (manteniendo el texto)
-        $dashPos = strpos($cleanName, '—');
+        // Buscar el pipe "|" primero (es el separador principal)
         $pipePos = strpos($cleanName, '|');
 
-        // Si hay un guión largo, separar ahí
-        // El nombre base es lo anterior al "—", las opciones son lo posterior sin el símbolo "—"
-        if ($dashPos !== false && $dashPos > 0) {
-            $base = trim(substr($cleanName, 0, $dashPos));
-            $options = trim(substr($cleanName, $dashPos + 1)); // Todo después del "—" (sin el símbolo)
-            // Eliminar solo el símbolo "—" si quedó al inicio
-            $options = preg_replace('/^—\s*/', '', $options);
-            if (!empty($base)) {
+        // Si hay pipe, separar ahí (el nombre base es lo anterior, opciones lo posterior)
+        if ($pipePos !== false && $pipePos > 0) {
+            $basePart = trim(substr($cleanName, 0, $pipePos));
+            $options = trim(substr($cleanName, $pipePos + 1));
+
+            // Si el nombre base contiene un guión, separar también ahí
+            // Ejemplo: "MICHELADAS — ÁGUILA | SAL..." => base: "MICHELADAS", options: "ÁGUILA | SAL..."
+            $dashLongPos = strpos($basePart, '—');
+            $dashMediumPos = strpos($basePart, '–');
+            $dashNormalPos = strpos($basePart, ' - ');
+            $dashSimplePos = strpos($basePart, '-');
+
+            $dashPos = false;
+            $dashLength = 1;
+
+            if ($dashLongPos !== false && $dashLongPos > 0) {
+                $dashPos = $dashLongPos;
+            } elseif ($dashMediumPos !== false && $dashMediumPos > 0) {
+                $dashPos = $dashMediumPos;
+            } elseif ($dashNormalPos !== false && $dashNormalPos > 0) {
+                $dashPos = $dashNormalPos;
+                $dashLength = 3;
+            } elseif ($dashSimplePos !== false && $dashSimplePos > 0) {
+                $charBefore = $dashSimplePos > 0 ? substr($basePart, $dashSimplePos - 1, 1) : '';
+                $charAfter = $dashSimplePos < strlen($basePart) - 1 ? substr($basePart, $dashSimplePos + 1, 1) : '';
+                if ($charBefore === ' ' || $charAfter === ' ') {
+                    $dashPos = $dashSimplePos;
+                    $dashLength = ($charBefore === ' ') ? 2 : 1;
+                }
+            }
+
+            // Si hay guión en el nombre base, separar ahí
+            if ($dashPos !== false && $dashPos > 0) {
+                $base = trim(substr($basePart, 0, $dashPos));
+                // Agregar lo que viene después del guión a las opciones
+                $afterDash = trim(substr($basePart, $dashPos + $dashLength));
+                $afterDash = preg_replace('/^\s*[—–-]\s*/u', '', $afterDash);
+                if (!empty($afterDash)) {
+                    $options = $afterDash . ' | ' . $options;
+                }
+            } else {
+                $base = $basePart;
+            }
+
+            if (!empty($base) && !empty($options)) {
                 return [$base, $options];
             }
         }
 
-        // Si no hay guión largo pero hay pipe, separar en el primer pipe
-        if ($pipePos !== false && $pipePos > 0) {
-            $base = trim(substr($cleanName, 0, $pipePos));
-            $options = trim(substr($cleanName, $pipePos + 1));
+        // Si no hay pipe, buscar guiones
+        $dashLongPos = strpos($cleanName, '—');
+        $dashMediumPos = strpos($cleanName, '–');
+        $dashNormalPos = strpos($cleanName, ' - ');
+        $dashSimplePos = strpos($cleanName, '-');
+
+        $dashPos = false;
+        $dashLength = 1;
+
+        if ($dashLongPos !== false && $dashLongPos > 0) {
+            $dashPos = $dashLongPos;
+        } elseif ($dashMediumPos !== false && $dashMediumPos > 0) {
+            $dashPos = $dashMediumPos;
+        } elseif ($dashNormalPos !== false && $dashNormalPos > 0) {
+            $dashPos = $dashNormalPos;
+            $dashLength = 3;
+        } elseif ($dashSimplePos !== false && $dashSimplePos > 0) {
+            $charBefore = $dashSimplePos > 0 ? substr($cleanName, $dashSimplePos - 1, 1) : '';
+            $charAfter = $dashSimplePos < strlen($cleanName) - 1 ? substr($cleanName, $dashSimplePos + 1, 1) : '';
+            if ($charBefore === ' ' || $charAfter === ' ') {
+                $dashPos = $dashSimplePos;
+                $dashLength = ($charBefore === ' ') ? 2 : 1;
+            }
+        }
+
+        // Si hay un guión, separar ahí
+        if ($dashPos !== false && $dashPos > 0) {
+            $base = trim(substr($cleanName, 0, $dashPos));
+            $options = trim(substr($cleanName, $dashPos + $dashLength));
+            $options = preg_replace('/^\s*[—–-]\s*/u', '', $options);
             if (!empty($base) && !empty($options)) {
                 return [$base, $options];
             }
