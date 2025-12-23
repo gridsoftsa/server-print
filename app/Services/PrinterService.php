@@ -745,22 +745,23 @@ class PrinterService
 
             // Si el nombre base contiene un guión, separar también ahí
             // Ejemplo: "MICHELADAS — 3x POKER | SAL..." => base: "MICHELADAS", options: "3x POKER, SAL..."
-            // Buscar diferentes tipos de guiones sin hacer trim primero para no perder posiciones
-            $dashLongPos = strpos($basePart, '—');
-            $dashMediumPos = strpos($basePart, '–');
+            // Buscar diferentes tipos de guiones - usar funciones que manejen UTF-8 correctamente
+            $dashLongPos = mb_strpos($basePart, '—', 0, 'UTF-8');
+            $dashMediumPos = mb_strpos($basePart, '–', 0, 'UTF-8');
             $dashNormalPos = strpos($basePart, ' - ');
             $dashSimplePos = strpos($basePart, '-');
 
             $dashPos = false;
-            $dashLength = 1;
+            $dashLength = 0;
+            $dashChar = '';
 
             // Priorizar guión largo, luego medio, luego normal con espacios, luego simple
             if ($dashLongPos !== false && $dashLongPos > 0) {
                 $dashPos = $dashLongPos;
-                $dashLength = 1;
+                $dashChar = '—';
             } elseif ($dashMediumPos !== false && $dashMediumPos > 0) {
                 $dashPos = $dashMediumPos;
-                $dashLength = 1;
+                $dashChar = '–';
             } elseif ($dashNormalPos !== false && $dashNormalPos > 0) {
                 $dashPos = $dashNormalPos;
                 $dashLength = 3; // " - " tiene 3 caracteres
@@ -776,14 +777,26 @@ class PrinterService
 
             // Si hay guión en el nombre base, separar ahí
             if ($dashPos !== false && $dashPos > 0) {
-                $base = trim(substr($basePart, 0, $dashPos));
-                // Agregar lo que viene después del guión a las opciones
-                $afterDash = trim(substr($basePart, $dashPos + $dashLength));
-                // Limpiar cualquier símbolo de guión que pueda haber quedado
-                $afterDash = preg_replace('/^\s*[—–-]\s*/u', '', $afterDash);
-                if (!empty($afterDash)) {
+                // Usar mb_substr para caracteres UTF-8 cuando sea necesario
+                if ($dashChar !== '') {
+                    // El guión largo o medio es un carácter UTF-8
+                    $base = trim(mb_substr($basePart, 0, $dashPos, 'UTF-8'));
+                    // Saltar el carácter del guión (1 carácter) y tomar todo lo que sigue
+                    $afterDash = mb_substr($basePart, $dashPos + 1, null, 'UTF-8');
+                    $afterDash = trim($afterDash);
+                } else {
+                    // Guión normal ASCII
+                    $base = trim(substr($basePart, 0, $dashPos));
+                    $afterDash = trim(substr($basePart, $dashPos + $dashLength));
+                }
+
+                // Limpiar espacios extra al inicio pero mantener todo el contenido
+                $afterDash = preg_replace('/^\s+/u', '', $afterDash);
+
+                // Asegurarse de que afterDash no esté vacío antes de agregarlo
+                if (!empty($afterDash) && trim($afterDash) !== '') {
                     // Concatenar con coma para que printProductNotes lo procese correctamente
-                    $options = $afterDash . ', ' . $options;
+                    $options = trim($afterDash) . ', ' . $options;
                 }
             } else {
                 $base = trim($basePart);
