@@ -807,36 +807,39 @@ class PrinterService
             }
         }
 
-        // Si no hay pipe, buscar guiones
-        $dashLongPos = strpos($cleanName, '—');
-        $dashMediumPos = strpos($cleanName, '–');
-        $dashNormalPos = strpos($cleanName, ' - ');
-        $dashSimplePos = strpos($cleanName, '-');
+        // Si no hay pipe, buscar guiones usando funciones multibyte para UTF-8
+        $dashLongPos = mb_strpos($cleanName, '—', 0, 'UTF-8');
+        $dashMediumPos = mb_strpos($cleanName, '–', 0, 'UTF-8');
+        $dashNormalPos = mb_strpos($cleanName, ' - ', 0, 'UTF-8');
+        $dashSimplePos = mb_strpos($cleanName, '-', 0, 'UTF-8');
 
         $dashPos = false;
-        $dashLength = 1;
+        $dashChar = '';
 
         if ($dashLongPos !== false && $dashLongPos > 0) {
             $dashPos = $dashLongPos;
+            $dashChar = '—';
         } elseif ($dashMediumPos !== false && $dashMediumPos > 0) {
             $dashPos = $dashMediumPos;
+            $dashChar = '–';
         } elseif ($dashNormalPos !== false && $dashNormalPos > 0) {
             $dashPos = $dashNormalPos;
-            $dashLength = 3;
+            $dashChar = ' - ';
         } elseif ($dashSimplePos !== false && $dashSimplePos > 0) {
-            $charBefore = $dashSimplePos > 0 ? substr($cleanName, $dashSimplePos - 1, 1) : '';
-            $charAfter = $dashSimplePos < strlen($cleanName) - 1 ? substr($cleanName, $dashSimplePos + 1, 1) : '';
+            $charBefore = $dashSimplePos > 0 ? mb_substr($cleanName, $dashSimplePos - 1, 1, 'UTF-8') : '';
+            $charAfter = $dashSimplePos < mb_strlen($cleanName, 'UTF-8') - 1 ? mb_substr($cleanName, $dashSimplePos + 1, 1, 'UTF-8') : '';
             if ($charBefore === ' ' || $charAfter === ' ') {
                 $dashPos = $dashSimplePos;
-                $dashLength = ($charBefore === ' ') ? 2 : 1;
+                $dashChar = '-';
             }
         }
 
-        // Si hay un guión, separar ahí
+        // Si hay un guión, separar ahí usando funciones multibyte
         if ($dashPos !== false && $dashPos > 0) {
-            $base = trim(substr($cleanName, 0, $dashPos));
-            $options = trim(substr($cleanName, $dashPos + $dashLength));
-            $options = preg_replace('/^\s*[—–-]\s*/u', '', $options);
+            $base = trim(mb_substr($cleanName, 0, $dashPos, 'UTF-8'));
+            $options = trim(mb_substr($cleanName, $dashPos + mb_strlen($dashChar, 'UTF-8'), null, 'UTF-8'));
+            // Limpiar espacios extra al inicio
+            $options = preg_replace('/^\s+/u', '', $options);
             if (!empty($base) && !empty($options)) {
                 return [$base, $options];
             }
