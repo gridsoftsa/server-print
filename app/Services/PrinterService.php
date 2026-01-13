@@ -131,8 +131,10 @@ class PrinterService
                     $this->printProductNotes($printer, $combinedNotes, $isSmallPaper);
                 }
 
+                // Agregar separador entre productos (sin ocupar espacio extra)
                 if ($currentIndex < $productCount) {
-                    $printer->text("\n");
+                    $separatorLine = $isSmallPaper ? str_repeat('-', 32) : str_repeat('-', 48);
+                    $printer->text($separatorLine . "\n");
                 }
             }
 
