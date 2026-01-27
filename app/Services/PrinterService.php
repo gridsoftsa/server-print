@@ -376,6 +376,12 @@ class PrinterService
                 if (!empty($notes) && $notes !== null) {
                     $printer->text(" * " . strtoupper($this->normalizeText($notes)) . "\n");
                 }
+
+                // Imprimir modificadores debajo del producto (con cantidad y precio si aplica)
+                $modifiers = $item['modifiers'] ?? [];
+                if (!empty($modifiers)) {
+                    $this->printItemModifiers($printer, $modifiers);
+                }
             }
 
             $printer->text(str_repeat('-', 48) . "\n");
@@ -997,6 +1003,55 @@ class PrinterService
         }
 
         return $lines;
+    }
+
+    /**
+     * Imprime los modificadores de un ítem debajo del nombre del producto.
+     * Muestra cantidad y el valor (precio * cantidad) si el precio es mayor a 0.
+     * Mantiene el formato de columnas: nombre (28), cantidad (4), valor (12).
+     */
+    private function printItemModifiers($printer, array $modifiers): void
+    {
+        try {
+            foreach ($modifiers as $mod) {
+                $modProduct = $mod['product'] ?? [];
+                $modName = $modProduct['name'] ?? ($mod['name'] ?? '');
+                $modQty = (int) ($mod['quantity'] ?? 1);
+                $modPrice = (float) ($modProduct['price'] ?? ($mod['price'] ?? 0));
+
+                $nameNormalized = strtoupper($this->normalizeText($modName));
+
+                // Prefijo para indicar modificador y reservar espacio en la columna de nombre
+                $prefix = '  + ';
+                $nameWidth = 28 - strlen($prefix); // Ajuste por prefijo
+
+                $nameTruncated = strlen($nameNormalized) > $nameWidth
+                    ? substr($nameNormalized, 0, $nameWidth)
+                    : $nameNormalized;
+
+                $nameCol = sprintf("%s%-" . $nameWidth . "s", $prefix, $nameTruncated);
+                $qtyCol = sprintf("%4d", $modQty);
+                $valueCol = $modPrice > 0
+                    ? sprintf("%12s", $this->formatCurrency($modPrice * max(1, $modQty)))
+                    : sprintf("%12s", '');
+
+                $line = $nameCol . ' ' . $qtyCol . ' ' . $valueCol;
+                $printer->text($line . "\n");
+
+                // Imprimir el resto del nombre si fue truncado
+                if (strlen($nameNormalized) > $nameWidth) {
+                    $remaining = substr($nameNormalized, $nameWidth);
+                    // Dividir el restante en trozos del mismo ancho de nombre
+                    while ($remaining !== '') {
+                        $chunk = substr($remaining, 0, $nameWidth);
+                        $remaining = substr($remaining, strlen($chunk));
+                        $printer->text(sprintf("%s%-" . $nameWidth . "s\n", '    ', $chunk));
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Error imprimiendo modificadores', ['error' => $e->getMessage()]);
+        }
     }
 
     private function triggerPrintAlert(Printer $printer, int $times = 1, int $durationMs = 120): void
