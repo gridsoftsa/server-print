@@ -11,6 +11,8 @@ class PrinterService
 {
     public function openCash(string $name = 'POS-80'): void
     {
+        Log::info('✅ Open Cash received');
+
         $connector = new WindowsPrintConnector($name);
         $printer = new Printer($connector);
 
@@ -23,6 +25,8 @@ class PrinterService
 
     public function printOrder(string $printerName, array $orderData, bool $openCash = false): array
     {
+        Log::info('✅ Print Order started');
+
         $startTime = microtime(true);
 
         $connector = new WindowsPrintConnector($printerName);
@@ -179,6 +183,8 @@ class PrinterService
 
     public function printSale(string $printerName, string $base64Image, bool $openCash = false, ?string $logoBase64 = null, ?string $logo = null): void
     {
+        Log::info('✅ Print Sale started');
+
         if (empty($base64Image)) {
             return;
         }
@@ -246,6 +252,8 @@ class PrinterService
 
     public function printSaleEscPos(string $printerName, array $saleData, bool $openCash = false, ?array $company = null, ?string $logoBase64 = null): void
     {
+        Log::info('✅ Print Sale EscPos started');
+
         $connector = new WindowsPrintConnector($printerName);
         $printer = new Printer($connector);
 
