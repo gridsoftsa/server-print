@@ -27,6 +27,8 @@ class PrinterController extends Controller
 
     public function printOrder(Request $request)
     {
+        Log::info('✅ Print Order received');
+
         ini_set('memory_limit', '1024M');
         $printerName = $request->printerName;
         $openCash = $request->openCash ?? false;
@@ -49,6 +51,8 @@ class PrinterController extends Controller
      */
     public function printSale(Request $request)
     {
+        Log::info('✅ Print Sale received');
+
         try {
             ini_set('memory_limit', '1024M');
             $this->printerService->printSale(
@@ -70,6 +74,8 @@ class PrinterController extends Controller
      */
     public function printSaleEscPos(Request $request)
     {
+        Log::info('✅ Print Sale EscPos received');
+
         try {
             ini_set('memory_limit', '1024M');
             $printerName = $request->input('printerName', 'POS-80');
