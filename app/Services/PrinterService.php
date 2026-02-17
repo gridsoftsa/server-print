@@ -719,7 +719,7 @@ class PrinterService
     {
         try {
             $printer->setJustification(Printer::JUSTIFY_CENTER);
-            $printer->qrCode($qrData, Printer::QR_ECLEVEL_L, 5, Printer::QR_MODEL_2);
+            $printer->qrCode($qrData, Printer::QR_ECLEVEL_L, 4, Printer::QR_MODEL_2);
             $printer->feed(1);
         } catch (\Exception $e) {
             try {
