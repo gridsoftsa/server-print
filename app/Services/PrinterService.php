@@ -330,9 +330,12 @@ class PrinterService
 
             $client = $saleData['client'] ?? [];
             if (!empty($client)) {
+                $nameCompany = isset($client['name_company']) ? trim((string) $client['name_company']) : '';
                 $firstName = $client['first_name'] ?? '';
                 $firstSurname = $client['first_surname'] ?? '';
-                $clientName = trim($firstName . ' ' . $firstSurname);
+                $clientName = !empty($nameCompany)
+                    ? $nameCompany
+                    : trim($firstName . ' ' . $firstSurname);
 
                 if (!empty($clientName)) {
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
