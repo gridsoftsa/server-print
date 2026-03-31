@@ -9,6 +9,9 @@ use Mike42\Escpos\Printer;
 
 class PrinterService
 {
+    private const ALERT_PROFILE_DEFAULT = 'generic';
+    private const ALERT_PROFILE_SAT_Q22 = 'sat_q22';
+
     public function openCash(string $name = 'POS-80'): void
     {
         Log::info('✅ Open Cash received');
@@ -162,7 +165,11 @@ class PrinterService
             $printer->selectPrintMode();
 
             $printer->feed(1);
-            $this->triggerPrintAlert($printer);
+            $this->triggerPrintAlert(
+                $printer,
+                $printerName,
+                $orderData['print_settings'] ?? null
+            );
             $printer->cut();
 
             if ($openCash) {
@@ -267,7 +274,6 @@ class PrinterService
             $this->printFooter($printer, $saleData);
 
             $printer->feed(2);
-            $this->triggerPrintAlert($printer);
             $printer->cut();
 
             if ($openCash) {
@@ -1065,21 +1071,273 @@ class PrinterService
         }
     }
 
-    private function triggerPrintAlert(Printer $printer, int $times = 1, int $durationMs = 120): void
+    private function triggerPrintAlert(Printer $printer, ?string $printerName = null, ?array $printSettings = null): void
     {
         try {
+            $alertEnabled = $this->isPrintAlertEnabled($printSettings);
+            if (!$alertEnabled) {
+                return;
+            }
+
             $connector = $printer->getPrintConnector();
-            $times = max(1, $times);
+
+            $times = $this->resolveAlertTimes($printSettings);
+            $durationMs = $this->resolveAlertDurationMs($printSettings);
+            $profile = $this->resolveAlertProfile($printerName, $printSettings);
+
             for ($i = 0; $i < $times; $i++) {
+                // BEL: fallback más compatible entre diferentes firmwares ESC/POS.
                 $connector->write("\x07");
                 if ($durationMs > 0) {
                     usleep($durationMs * 1000);
                 }
+            }
+
+            if ($profile === self::ALERT_PROFILE_SAT_Q22) {
+                $this->sendSatQ22AlertSequence($connector, $times, $durationMs);
+            } else {
+                $this->sendEscPosExtendedAlertSequence($connector, $times, $durationMs);
             }
         } catch (\Throwable $e) {
             Log::warning('No se pudo reproducir el beep de alerta', [
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function isPrintAlertEnabled(?array $printSettings): bool
+    {
+        $settingValue = $printSettings['print_alert'] ?? $printSettings['beep_on_print'] ?? null;
+        if ($settingValue !== null) {
+            return filter_var($settingValue, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+        }
+
+        return filter_var(env('PRINT_ALERT_ENABLED', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
+    }
+
+    private function resolveAlertTimes(?array $printSettings): int
+    {
+        $times = (int) (
+            $printSettings['print_alert_times']
+            ?? $printSettings['beep_times']
+            ?? env('PRINT_ALERT_TIMES', 2)
+        );
+
+        return max(1, min($times, 9));
+    }
+
+    private function resolveAlertDurationMs(?array $printSettings): int
+    {
+        $durationMs = (int) (
+            $printSettings['print_alert_duration_ms']
+            ?? $printSettings['beep_duration_ms']
+            ?? env('PRINT_ALERT_DURATION_MS', 120)
+        );
+
+        return max(50, min($durationMs, 2000));
+    }
+
+    private function resolveAlertProfile(?string $printerName, ?array $printSettings): string
+    {
+        $profileFromSettings = $this->normalizeAlertProfile((string) (
+            $printSettings['print_alert_profile']
+            ?? $printSettings['beep_profile']
+            ?? $printSettings['alert_profile']
+            ?? ''
+        ));
+        if ($profileFromSettings !== null) {
+            return $profileFromSettings;
+        }
+
+        $profileByBrand = $this->resolveAlertProfileByBrand($printSettings);
+        if ($profileByBrand !== null) {
+            return $profileByBrand;
+        }
+
+        $profileByPrinter = $this->resolveAlertProfileByPrinterName($printerName);
+        if ($profileByPrinter !== null) {
+            return $profileByPrinter;
+        }
+
+        $profileByContains = $this->resolveAlertProfileByContains($printerName);
+        if ($profileByContains !== null) {
+            return $profileByContains;
+        }
+
+        $profileByLegacyAutodetect = $this->resolveLegacyAutodetectProfile($printerName);
+        if ($profileByLegacyAutodetect !== null) {
+            return $profileByLegacyAutodetect;
+        }
+
+        $profileFromEnv = $this->normalizeAlertProfile((string) env('PRINT_ALERT_PROFILE', self::ALERT_PROFILE_DEFAULT));
+        if ($profileFromEnv !== null) {
+            return $profileFromEnv;
+        }
+
+        return self::ALERT_PROFILE_DEFAULT;
+    }
+
+    private function resolveAlertProfileByPrinterName(?string $printerName): ?string
+    {
+        $printerNameNormalized = strtolower(trim((string) $printerName));
+        if ($printerNameNormalized === '') {
+            return null;
+        }
+
+        $mapRaw = env('PRINT_ALERT_PROFILE_MAP', '');
+        if (!is_string($mapRaw) || trim($mapRaw) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($mapRaw, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        foreach ($decoded as $key => $value) {
+            $alias = strtolower(trim((string) $key));
+            $mappedProfile = $this->normalizeAlertProfile((string) $value);
+            if ($alias === '' || $mappedProfile === null) {
+                continue;
+            }
+
+            if ($alias === $printerNameNormalized) {
+                return $mappedProfile;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveAlertProfileByContains(?string $printerName): ?string
+    {
+        $printerNameNormalized = strtolower(trim((string) $printerName));
+        if ($printerNameNormalized === '') {
+            return null;
+        }
+
+        $mapRaw = env('PRINT_ALERT_PROFILE_CONTAINS_MAP', '');
+        if (!is_string($mapRaw) || trim($mapRaw) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($mapRaw, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        foreach ($decoded as $contains => $profile) {
+            $containsNormalized = strtolower(trim((string) $contains));
+            $mappedProfile = $this->normalizeAlertProfile((string) $profile);
+            if ($containsNormalized === '' || $mappedProfile === null) {
+                continue;
+            }
+
+            if (str_contains($printerNameNormalized, $containsNormalized)) {
+                return $mappedProfile;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveAlertProfileByBrand(?array $printSettings): ?string
+    {
+        $brand = strtolower(trim((string) (
+            $printSettings['print_alert_brand']
+            ?? $printSettings['printer_brand']
+            ?? $printSettings['brand']
+            ?? ''
+        )));
+        if ($brand === '') {
+            return null;
+        }
+
+        $mapRaw = env('PRINT_ALERT_BRAND_PROFILE_MAP', '');
+        if (!is_string($mapRaw) || trim($mapRaw) === '') {
+            return $this->normalizeAlertProfile($brand);
+        }
+
+        $decoded = json_decode($mapRaw, true);
+        if (!is_array($decoded)) {
+            return $this->normalizeAlertProfile($brand);
+        }
+
+        foreach ($decoded as $brandKey => $profile) {
+            $brandKeyNormalized = strtolower(trim((string) $brandKey));
+            $mappedProfile = $this->normalizeAlertProfile((string) $profile);
+            if ($brandKeyNormalized === '' || $mappedProfile === null) {
+                continue;
+            }
+
+            if ($brand === $brandKeyNormalized) {
+                return $mappedProfile;
+            }
+        }
+
+        return $this->normalizeAlertProfile($brand);
+    }
+
+    private function resolveLegacyAutodetectProfile(?string $printerName): ?string
+    {
+        $printerNameNormalized = strtolower((string) $printerName);
+        if (
+            str_contains($printerNameNormalized, 'sat')
+            || str_contains($printerNameNormalized, 'q22')
+            || str_contains($printerNameNormalized, 'q22ue')
+        ) {
+            return self::ALERT_PROFILE_SAT_Q22;
+        }
+
+        return null;
+    }
+
+    private function normalizeAlertProfile(string $profile): ?string
+    {
+        $value = strtolower(trim($profile));
+        if ($value === '') {
+            return null;
+        }
+
+        return match ($value) {
+            'sat_q22', 'sat', 'q22', 'q22ue', 'satq22', 'sat-q22', 'sat-q22ue' => self::ALERT_PROFILE_SAT_Q22,
+            'generic', 'default', 'normal', 'star', '3nstar', 'epson', 'tm' => self::ALERT_PROFILE_DEFAULT,
+            default => null,
+        };
+    }
+
+    private function sendEscPosExtendedAlertSequence($connector, int $times, int $durationMs): void
+    {
+        try {
+            // ESC B n t: soportado por varios modelos ESC/POS compatibles.
+            $durationUnit100ms = (int) max(1, min(9, round($durationMs / 100)));
+            $connector->write("\x1B\x42" . chr($times) . chr($durationUnit100ms));
+        } catch (\Throwable $e) {
+            // Ignorar si no está soportado por el firmware.
+        }
+
+        try {
+            // ESC ( A fn=48: formato Epson para control de buzzer.
+            // 1B 28 41 04 00 30 n c t
+            $n = 51; // Patrón tonal seguro común.
+            $c = max(1, min($times, 9));
+            $t = max(10, min((int) round($durationMs / 100), 255));
+            $connector->write("\x1B\x28\x41\x04\x00\x30" . chr($n) . chr($c) . chr($t));
+        } catch (\Throwable $e) {
+            // Ignorar si no está soportado por el firmware.
+        }
+    }
+
+    private function sendSatQ22AlertSequence($connector, int $times, int $durationMs): void
+    {
+        try {
+            // SAT Q22UE suele responder bien a esta variante ESC B.
+            $durationUnit100ms = (int) max(1, min(9, round($durationMs / 100)));
+            $connector->write("\x1B\x42" . chr($times) . chr($durationUnit100ms));
+        } catch (\Throwable $e) {
+            // Ignorar si no está soportado por el firmware.
+        }
+
+        $this->sendEscPosExtendedAlertSequence($connector, $times, $durationMs);
     }
 }

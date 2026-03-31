@@ -59,6 +59,75 @@ Messages are logged to Laravel logs. To tail logs during development:
 tail -f storage/logs/laravel.log | cat
 ```
 
+## Sonido al imprimir orden (multi-marca)
+
+`server-print` envía alerta sonora al final de `print-order` (solo ordenes, no ventas), con soporte multi-marca y retrocompatibilidad.
+
+### Variables de entorno
+
+Agrega en `.env`:
+
+```
+PRINT_ALERT_ENABLED=true
+PRINT_ALERT_TIMES=2
+PRINT_ALERT_DURATION_MS=120
+PRINT_ALERT_PROFILE=generic
+PRINT_ALERT_PROFILE_MAP='{"COCINA":"sat_q22","BARRA":"generic"}'
+PRINT_ALERT_PROFILE_CONTAINS_MAP='{"sat":"sat_q22","q22":"sat_q22","q22ue":"sat_q22","epson":"generic","tm-t":"generic","tmu":"generic","3nstar":"generic","rpt":"generic","xprinter":"generic","xp-":"generic","bixolon":"generic","srp":"generic","star":"generic","tsp":"generic","gprinter":"generic","gp-":"generic","bematech":"generic","daruma":"generic"}'
+PRINT_ALERT_BRAND_PROFILE_MAP='{"sat":"sat_q22","q22":"sat_q22","q22ue":"sat_q22","epson":"generic","3nstar":"generic","xprinter":"generic","bixolon":"generic","star":"generic","starmicronics":"generic","gprinter":"generic","bematech":"generic","daruma":"generic"}'
+```
+
+Perfiles soportados:
+- `generic`: secuencia BEL + secuencias extendidas ESC/POS.
+- `sat_q22`: prioriza comandos que suelen funcionar en SAT Q22UE y mantiene fallback.
+
+Prioridad de selección de perfil:
+1. `orderData.print_settings.print_alert_profile`
+2. `orderData.print_settings.print_alert_brand` (o `printer_brand`/`brand`)
+3. `PRINT_ALERT_PROFILE_MAP` por nombre exacto de impresora
+4. `PRINT_ALERT_PROFILE_CONTAINS_MAP` por coincidencia parcial (`SATCOCINA`, `3NSTARCOCINA`, etc.)
+5. Autodetección legacy por nombre (`sat`, `q22`, `q22ue`)
+6. `PRINT_ALERT_PROFILE`
+7. Fallback final: `generic`
+
+### Configuración por orden (opcional)
+
+Dentro de `orderData.print_settings` puedes enviar:
+- `print_alert` o `beep_on_print`: `true|false`
+- `print_alert_times` o `beep_times`: `1..9`
+- `print_alert_duration_ms` o `beep_duration_ms`: `50..2000`
+- `print_alert_profile`: `generic|sat_q22`
+- `print_alert_brand` (o `printer_brand`/`brand`): `sat`, `q22ue`, `3nstar`, `epson`, etc.
+
+### Ejemplos recomendados
+
+```json
+{
+  "printerName": "SATCOCINA",
+  "orderData": {
+    "print_settings": {
+      "print_alert": true
+    }
+  }
+}
+```
+
+Con `PRINT_ALERT_PROFILE_CONTAINS_MAP`, `SATCOCINA` cae en `sat_q22`.
+
+```json
+{
+  "printerName": "COCINA_01",
+  "orderData": {
+    "print_settings": {
+      "print_alert": true,
+      "print_alert_brand": "3nstar"
+    }
+  }
+}
+```
+
+Ese request fuerza resolución por marca y mantiene retrocompatibilidad entre clientes.
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
