@@ -272,7 +272,10 @@ class ListenWebsocketCommand extends Command
                 });
 
             $loop->run();
-            return 0;
+
+            // Si el loop terminó por close/error y debemos reconectar, no devolver 0:
+            // connectWithRetry interpreta 0 como "salir del comando" y nunca reintenta.
+            return $this->shouldReconnect ? 1 : 0;
         } catch (\Throwable $e) {
             return 1;
         }
