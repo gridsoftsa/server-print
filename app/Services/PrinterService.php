@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Mike42\Escpos\EscposImage;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
@@ -329,8 +330,10 @@ class PrinterService
 
             $billing = $saleData['billing'] ?? '';
             if (!empty($billing)) {
+                $configResolution = $saleData['config_resolution'] ?? [];
+                $billingLabel = $this->billingDocumentLineLabel($configResolution);
                 $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                $printer->text("VENTA: " . $this->normalizeText($billing) . "\n");
+                $printer->text($billingLabel . ' ' . $this->normalizeText($billing) . "\n");
                 $printer->selectPrintMode();
             }
 
@@ -496,19 +499,20 @@ class PrinterService
 
             $paymentMethods = $saleData['payment_methods'] ?? [];
             if (!empty($paymentMethods)) {
+                $configResolution = $saleData['config_resolution'] ?? [];
                 if (count($paymentMethods) == 1) {
                     $method = $paymentMethods[0];
                     $methodName = $method['name'] ?? '';
                     if (!empty($methodName)) {
                         $printer->setJustification(Printer::JUSTIFY_RIGHT);
                         $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                        $printer->text("Forma de pago: " . $this->normalizeText($methodName) . "\n");
+                        $printer->text("Pagado por: " . $this->normalizeText($methodName) . "\n");
                         $printer->selectPrintMode();
                     }
                 } else {
                     $printer->setJustification(Printer::JUSTIFY_RIGHT);
                     $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                    $printer->text("Formas de pago:\n");
+                    $printer->text("Pagado por:\n");
                     $printer->selectPrintMode();
 
                     $printer->setJustification(Printer::JUSTIFY_RIGHT);
@@ -520,6 +524,7 @@ class PrinterService
                         }
                     }
                 }
+                $this->printMedioDePagoDianLine($printer, $configResolution, $paymentMethods);
             }
 
             $quotas = $saleData['quotas'] ?? [];
@@ -562,19 +567,19 @@ class PrinterService
         try {
             $printer->setJustification(Printer::JUSTIFY_RIGHT);
 
+            $createdAt = $saleData['created_at'] ?? '';
+            if (!empty($createdAt)) {
+                $date = date('d/m/Y h:i:s A', strtotime($createdAt) - 18000);
+                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                $printer->text("Generación: " . $date . "\n");
+                $printer->selectPrintMode();
+            }
+
             $user = $saleData['user'] ?? [];
             $userName = $user['nickname'] ?? $user['name'] ?? '';
             if (!empty($userName)) {
                 $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
                 $printer->text("Atendido por: " . $this->normalizeText($userName) . "\n");
-                $printer->selectPrintMode();
-            }
-
-            $createdAt = $saleData['created_at'] ?? '';
-            if (!empty($createdAt)) {
-                $date = date('d/m/Y h:i:s A', strtotime($createdAt) - 18000);
-                $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                $printer->text("Generacion: " . $date . "\n");
                 $printer->selectPrintMode();
             }
 
@@ -589,22 +594,45 @@ class PrinterService
             }
 
             $cufe = $saleData['cufe'] ?? '';
+            $invoiceSentForValidation = null;
             if (empty($cufe) || $cufe === 'null') {
                 $invoiceSents = $saleData['invoice_sents'] ?? [];
                 if (!empty($invoiceSents)) {
-                    $cufe = $invoiceSents[0]['cufe'] ?? '';
+                    $invoiceSentForValidation = $invoiceSents[0];
+                    $cufe = $invoiceSentForValidation['cufe'] ?? '';
                 }
+            } elseif (!empty($saleData['invoice_sents'][0])) {
+                $invoiceSentForValidation = $saleData['invoice_sents'][0];
             }
 
             if (!empty($cufe) && $cufe !== 'null' && strtolower($cufe) !== 'null') {
+                $cufeLabel = $this->isElectronicInvoicePos($configResolution) ? 'CUDE:' : 'CUFE:';
+
                 $qrUrl = "https://catalogo-vpfe.dian.gov.co/User/SearchDocument?documentkey=" . $cufe;
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
-                $printer->text("CUFE:\n");
+                $printer->text($cufeLabel . "\n");
                 $printer->selectPrintMode();
                 $this->printQRCode($printer, $qrUrl);
                 $printer->setJustification(Printer::JUSTIFY_CENTER);
                 $printer->text($cufe . "\n");
+
+                $validationIso = $invoiceSentForValidation['created_at'] ?? null;
+                if (!empty($validationIso) && $validationIso !== 'null') {
+                    $validationFormatted = $this->formatDateTimeColombia($validationIso);
+                    if ($validationFormatted !== null) {
+                        $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+                        $printer->text("Hora de validación: " . $validationFormatted . "\n");
+                        $printer->selectPrintMode();
+                    }
+                }
+            }
+
+            if ($this->shouldPrintElectronicSoftwareAttribution($configResolution)) {
+                $swName = trim((string) ($configResolution['software_name'] ?? ''));
+                $printer->setJustification(Printer::JUSTIFY_CENTER);
+                $printer->text($this->normalizeText('Documento emitido por ' . $swName . ".\n"));
+                $printer->text($this->normalizeText("Procesado y transmitido a traves de los servicios de GridSoft S.A.S\n"));
                 $printer->feed(1);
             }
 
@@ -627,6 +655,119 @@ class PrinterService
             return '$ ' . number_format($amount, 2, ',', ',');
         } catch (\Exception $e) {
             return '$ ' . number_format((float) $amount, 0);
+        }
+    }
+
+    /**
+     * Numeración con facturación electrónica activa (DIAN).
+     */
+    private function isElectronicNumeration(array $configResolution): bool
+    {
+        return isset($configResolution['is_electronic'])
+            && ($configResolution['is_electronic'] == 1
+                || $configResolution['is_electronic'] === true
+                || $configResolution['is_electronic'] === '1');
+    }
+
+    /**
+     * POS electrónico DIAN: numeración con type_document invoice_pos y facturación electrónica activa.
+     */
+    private function isElectronicInvoicePos(array $configResolution): bool
+    {
+        return $this->isElectronicNumeration($configResolution)
+            && ($configResolution['type_document'] ?? '') === 'invoice_pos';
+    }
+
+    /**
+     * Factura electrónica DIAN (type_document invoice + numeración electrónica).
+     */
+    private function isElectronicInvoice(array $configResolution): bool
+    {
+        return $this->isElectronicNumeration($configResolution)
+            && ($configResolution['type_document'] ?? '') === 'invoice';
+    }
+
+    /**
+     * Etiqueta del consecutivo en tirilla: interno (VENTA), eqdoc POS, o factura electrónica.
+     */
+    private function billingDocumentLineLabel(array $configResolution): string
+    {
+        if ($this->isElectronicInvoicePos($configResolution)) {
+            return 'Documento Equivalente:';
+        }
+        if ($this->isElectronicInvoice($configResolution)) {
+            return 'Factura electrónica:';
+        }
+
+        return 'VENTA:';
+    }
+
+    /**
+     * Segunda línea de pago en facturación electrónica: Efectivo vs Transferencia (DIAN).
+     */
+    private function printMedioDePagoDianLine($printer, array $configResolution, array $paymentMethods): void
+    {
+        if (!$this->isElectronicNumeration($configResolution) || empty($paymentMethods)) {
+            return;
+        }
+        if ($this->paymentMethodsAreAllCash($paymentMethods)) {
+            return;
+        }
+        $printer->setJustification(Printer::JUSTIFY_RIGHT);
+        $printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+        $printer->text('Medio de Pago: ' . $this->normalizeText('Transferencia') . "\n");
+        $printer->selectPrintMode();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $paymentMethods
+     */
+    private function paymentMethodsAreAllCash(array $paymentMethods): bool
+    {
+        foreach ($paymentMethods as $method) {
+            $value = strtolower((string) ($method['value'] ?? ''));
+            if ($value === 'cash') {
+                continue;
+            }
+            $name = strtolower((string) ($method['name'] ?? ''));
+            if (str_contains($name, 'efectivo')) {
+                continue;
+            }
+
+            return false;
+        }
+
+        return count($paymentMethods) > 0;
+    }
+
+    /**
+     * Pie legal software: solo electrónica + invoice/invoice_pos + nombre de software informado.
+     */
+    private function shouldPrintElectronicSoftwareAttribution(array $configResolution): bool
+    {
+        if (!$this->isElectronicNumeration($configResolution)) {
+            return false;
+        }
+        $typeDoc = $configResolution['type_document'] ?? '';
+        if (!in_array($typeDoc, ['invoice', 'invoice_pos'], true)) {
+            return false;
+        }
+
+        return trim((string) ($configResolution['software_name'] ?? '')) !== '';
+    }
+
+    /**
+     * Fecha/hora en zona Bogotá para ticket (hora de validación DIAN guardada en invoice_sents.created_at).
+     */
+    private function formatDateTimeColombia(?string $iso): ?string
+    {
+        if ($iso === null || $iso === '' || $iso === 'null') {
+            return null;
+        }
+        try {
+            return Carbon::parse($iso)->timezone('America/Bogota')->format('d/m/Y h:i:s A');
+        } catch (\Exception $e) {
+            return null;
         }
     }
 
